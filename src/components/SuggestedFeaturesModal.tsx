@@ -11,6 +11,9 @@ import {
   Plus,
   Trash2,
   X,
+  Megaphone,
+  Rss,
+  Scissors,
 } from 'lucide-react';
 import { HDate } from '@hebcal/core';
 import {
@@ -34,6 +37,12 @@ export function SuggestedFeaturesModal({
   personalHebrewEvents,
   onAddPersonalEvent,
   onRemovePersonalEvent,
+  sponsorsCount = 0,
+  sponsorsEnabled = true,
+  onToggleSponsors,
+  showCropMarks = false,
+  onToggleCropMarks,
+  onOpenTodayTab,
 }: {
   open: boolean;
   onClose: () => void;
@@ -45,6 +54,12 @@ export function SuggestedFeaturesModal({
   personalHebrewEvents: PersonalHebrewEvent[];
   onAddPersonalEvent: (ev: PersonalHebrewEvent) => void;
   onRemovePersonalEvent: (id: string) => void;
+  sponsorsCount?: number;
+  sponsorsEnabled?: boolean;
+  onToggleSponsors?: () => void;
+  showCropMarks?: boolean;
+  onToggleCropMarks?: () => void;
+  onOpenTodayTab?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<'roadmap' | 'yahrzeits' | 'shabbat-flyer'>('roadmap');
 
@@ -154,29 +169,34 @@ export function SuggestedFeaturesModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 backdrop-blur-xs sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-card p-6 text-foreground shadow-2xl"
+        className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl border border-border bg-card p-5 pb-8 text-foreground shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:p-6"
       >
+        {/* Mobile Bottom-Sheet Drag Handle */}
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border sm:hidden" />
+
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div>
-            <p className="text-xs font-semibold text-primary">
-              Luach Studio · Product Analysis & Built-in Enhancements
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+              <Sparkles className="size-3.5" />
+              <span>Luach Studio · All 7 Suggested Features Implemented Live</span>
             </p>
-            <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">
-              Suggested Features & Live Power Tools
+            <h2 className="mt-1 font-display text-xl font-semibold tracking-tight sm:text-2xl">
+              Suggested Features &amp; Live Power Tools
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              We analyzed jewishcalendar.freebuff.app and built its top missing community & halachic features directly into this studio.
+              Every community and print-shop enhancement we recommended for jewishcalendar.freebuff.app is now active in your studio.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Close modal"
+            className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="size-5" />
           </button>
@@ -187,59 +207,59 @@ export function SuggestedFeaturesModal({
           <button
             type="button"
             onClick={() => setActiveTab('roadmap')}
-            className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+            className={`min-h-[40px] flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'roadmap'
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            1. Suggested Features (Interactive)
+            1. All 7 Features (Interactive)
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('yahrzeits')}
-            className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+            className={`min-h-[40px] flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'yahrzeits'
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            2. Hebrew Yahrzeit & Birthday Tracker ({personalHebrewEvents.length})
+            2. Yahrzeit Tracker ({personalHebrewEvents.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('shabbat-flyer')}
-            className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+            className={`min-h-[40px] flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'shabbat-flyer'
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            3. Weekly Shabbat Shul Bulletin
+            3. Weekly Shabbat Bulletin
           </button>
         </div>
 
         {activeTab === 'roadmap' && (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
             {/* Suggestion 1 */}
             <div className="flex flex-col justify-between rounded-xl border border-border bg-background p-4">
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <CalendarRange className="size-4" />
-                    <span>Jewish Year Cycle (Tishrei–Elul)</span>
+                    <span>01. Jewish Year Cycle (Tishrei–Elul)</span>
                   </span>
                   <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                    Implemented Live
+                    Active
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  The original app only generates January–December secular years. Communities printing a Rosh Hashanah wall calendar need a true <strong>Tishrei–Elul</strong> cycle (September through August).
+                  Generate Rosh Hashanah wall calendars on a true <strong>Tishrei–Elul</strong> cycle (September–August) or secular January–December.
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
                 <span className="text-xs font-medium">
-                  Current: {settings.cycle === 'hebrew' ? 'Hebrew Year (Sep–Aug)' : 'Secular (Jan–Dec)'}
+                  Current: {settings.cycle === 'hebrew' ? 'Hebrew (Sep–Aug)' : 'Secular (Jan–Dec)'}
                 </span>
                 <button
                   type="button"
@@ -248,7 +268,7 @@ export function SuggestedFeaturesModal({
                       cycle: settings.cycle === 'hebrew' ? 'secular' : 'hebrew',
                     })
                   }
-                  className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  className="min-h-[36px] cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
                 >
                   Switch to {settings.cycle === 'hebrew' ? 'Jan–Dec' : 'Tishrei–Elul'}
                 </button>
@@ -261,24 +281,24 @@ export function SuggestedFeaturesModal({
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <HeartHandshake className="size-4" />
-                    <span>Hebrew-Date Yahrzeit & Birthday Sync</span>
+                    <span>02. Hebrew-Date Yahrzeit &amp; Birthday Sync</span>
                   </span>
                   <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                    Implemented Live
+                    Active
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  In the original app, custom events are tied to a single Gregorian date (e.g., Oct 12, 2026) and break the following year. Our Hebrew Date Tracker converts any Gregorian date to Hebrew and repeats on the exact Hebrew date every year.
+                  Convert any Gregorian passing date (including after sunset) to Hebrew and mark it on the exact Hebrew date every year with Adar leap-year support.
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                <span className="text-xs font-medium">
-                  {personalHebrewEvents.length} recurring Hebrew events active
+                <span className="font-mono text-xs font-medium tabular-nums">
+                  {personalHebrewEvents.length} dates tracked
                 </span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('yahrzeits')}
-                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className="min-h-[36px] cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                   Manage Yahrzeits
                 </button>
@@ -291,14 +311,14 @@ export function SuggestedFeaturesModal({
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <Scale className="size-4" />
-                    <span>Dual-Opinion Shema & Rabbeinu Tam</span>
+                    <span>03. Dual-Opinion Shema &amp; Rabbeinu Tam</span>
                   </span>
                   <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                    Implemented Live
+                    Active
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Many synagogues display both <strong>Magen Avraham (MGA)</strong> and <strong>Baal HaTanya / GRA</strong> for Sof Zman Krias Shema directly on each calendar cell, plus 72-minute Rabbeinu Tam in the day inspector.
+                  Display both <strong>Magen Avraham (MGA)</strong> and <strong>Baal HaTanya / GRA</strong> for Sof Zman Krias Shema directly on each calendar cell.
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
@@ -310,7 +330,7 @@ export function SuggestedFeaturesModal({
                   onClick={() =>
                     onUpdateJewishOptions({ dualZmanim: !jewishOptions.dualZmanim })
                   }
-                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className="min-h-[36px] cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                   {jewishOptions.dualZmanim ? 'Hide Dual Shema' : 'Show Dual Shema'}
                 </button>
@@ -323,47 +343,123 @@ export function SuggestedFeaturesModal({
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <FileText className="size-4" />
-                    <span>Weekly Shabbat Shul Bulletin Generator</span>
+                    <span>04. Weekly Shabbat Shul Bulletin</span>
                   </span>
                   <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                    Implemented Live
+                    Active
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Chabad houses and synagogues need weekly WhatsApp/email announcements with Friday candle lighting, Plag HaMincha, Shacharit Shema cutoffs, Pirkei Avot, and Havdalah.
+                  Generate weekly WhatsApp/email announcements with Friday candle lighting, Plag HaMincha, Shacharit Shema cutoffs, Pirkei Avot, and Havdalah.
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                <span className="text-xs font-medium">{upcomingShabbatPairs.length} Shabbatot ready</span>
+                <span className="font-mono text-xs font-medium tabular-nums">
+                  {upcomingShabbatPairs.length} Shabbatot ready
+                </span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('shabbat-flyer')}
-                  className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  className="min-h-[36px] cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                   Open Bulletin Tool
                 </button>
               </div>
             </div>
 
-            {/* Additional Future Architecture Recommendations */}
-            <div className=" rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2">
-              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                <Sparkles className="size-3.5 text-primary" />
-                <span>Additional High-Impact Product Recommendations for Next Phase</span>
-              </h4>
-              <div className="mt-2.5 grid gap-3 text-xs text-muted-foreground sm:grid-cols-3">
-                <div>
-                  <strong className="block text-foreground">1. Donor Ad-Box Sponsorship Grid</strong>
-                  Allow Chabad houses to sell footer banner slots and empty grid cells to local businesses with automatic invoice tracking.
+            {/* Suggestion 5: Donor Ad-Box Sponsorship Grid */}
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-background p-4">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <Megaphone className="size-4" />
+                    <span>05. Community Sponsor &amp; Ad-Box Grid</span>
+                  </span>
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    Active
+                  </span>
                 </div>
-                <div>
-                  <strong className="block text-foreground">2. Live Google Calendar Webcal Feed</strong>
-                  Host a dynamic <code>webcal://</code> URL so community members subscribe once and get automatic annual Zmanim updates.
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Place local business ads and family dedications inside empty calendar cells ($180) and monthly footer banners ($360) with live fundraising totals.
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                <span className="font-mono text-xs font-medium tabular-nums">
+                  {sponsorsCount} sponsors · {sponsorsEnabled ? 'Visible' : 'Hidden'}
+                </span>
+                {onToggleSponsors && (
+                  <button
+                    type="button"
+                    onClick={onToggleSponsors}
+                    className="min-h-[36px] cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  >
+                    {sponsorsEnabled ? 'Hide Sponsor Ads' : 'Show Sponsor Ads'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Suggestion 6: Live Webcal Feed & Daily Halachic Clock */}
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-background p-4">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <Rss className="size-4" />
+                    <span>06. Live Webcal Feed &amp; Halachic Clock</span>
+                  </span>
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    Active
+                  </span>
                 </div>
-                <div>
-                  <strong className="block text-foreground">3. CMYK Print Bleed & Crop Marks</strong>
-                  Add 0.125-inch commercial print bleed and saddle-stitch imposition for professional 28-page print shops.
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Interactive Today Zmanim dashboard with live countdown to the next halachic time, 7-day mobile scroller, and <code>webcal://</code> subscription URL.
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                <span className="text-xs font-medium">
+                  {calendar.location.city} Live Feed
+                </span>
+                {onOpenTodayTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenTodayTab();
+                      onClose();
+                    }}
+                    className="min-h-[36px] cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    Open Today &amp; Webcal View
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Suggestion 7: Commercial Print Bleed & Crop Marks */}
+            <div className="flex flex-col justify-between rounded-xl border border-border bg-background p-4 sm:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                      <Scissors className="size-4" />
+                      <span>07. Commercial Print-Shop Crop Marks &amp; 0.125&quot; Bleed Guides</span>
+                    </span>
+                    <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      Active
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                    Add corner trim ticks, registration crosshairs, and 0.125-inch bleed guides on calendar pages so commercial print shops can trim 28-page saddle-stitched wall calendars cleanly.
+                  </p>
                 </div>
+                {onToggleCropMarks && (
+                  <button
+                    type="button"
+                    onClick={onToggleCropMarks}
+                    className="min-h-[38px] cursor-pointer rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-accent whitespace-nowrap shrink-0"
+                  >
+                    {showCropMarks ? 'Hide Print Crop Marks' : 'Enable Print Crop Marks'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -392,7 +488,7 @@ export function SuggestedFeaturesModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Grandfather Avraham ben Yitzchak"
-                    className="mt-1 h-9 w-full rounded-lg border border-border bg-card px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+                    className="mt-1 min-h-[42px] w-full rounded-lg border border-border bg-card px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
@@ -405,7 +501,7 @@ export function SuggestedFeaturesModal({
                     onChange={(e) =>
                       setCategory(e.target.value as PersonalHebrewEvent['category'])
                     }
-                    className="mt-1 h-9 w-full rounded-lg border border-border bg-card px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
+                    className="mt-1 min-h-[42px] w-full rounded-lg border border-border bg-card px-3 text-xs outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="yahrzeit">🕯️ Yahrzeit (In Memory)</option>
                     <option value="birthday">🎉 Hebrew Birthday</option>
@@ -415,8 +511,8 @@ export function SuggestedFeaturesModal({
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center gap-4 text-xs">
-                <label className="inline-flex cursor-pointer items-center gap-1.5">
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
+                <label className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5">
                   <input
                     type="radio"
                     checked={inputMode === 'hebrew'}
@@ -424,7 +520,7 @@ export function SuggestedFeaturesModal({
                   />
                   <span>Select Hebrew Date directly</span>
                 </label>
-                <label className="inline-flex cursor-pointer items-center gap-1.5">
+                <label className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5">
                   <input
                     type="radio"
                     checked={inputMode === 'gregorian'}
@@ -443,7 +539,7 @@ export function SuggestedFeaturesModal({
                     <select
                       value={hebrewDay}
                       onChange={(e) => setHebrewDay(Number(e.target.value))}
-                      className="mt-1 h-9 w-full rounded-lg border border-border bg-card px-3 text-xs"
+                      className="mt-1 min-h-[42px] w-full rounded-lg border border-border bg-card px-3 text-xs"
                     >
                       {Array.from({ length: 30 }, (_, i) => i + 1).map((d) => (
                         <option key={d} value={d}>
@@ -459,7 +555,7 @@ export function SuggestedFeaturesModal({
                     <select
                       value={hebrewMonth}
                       onChange={(e) => setHebrewMonth(Number(e.target.value))}
-                      className="mt-1 h-9 w-full rounded-lg border border-border bg-card px-3 text-xs"
+                      className="mt-1 min-h-[42px] w-full rounded-lg border border-border bg-card px-3 text-xs"
                     >
                       {HEBREW_MONTH_OPTIONS.map((m) => (
                         <option key={m.num} value={m.num}>
@@ -479,10 +575,10 @@ export function SuggestedFeaturesModal({
                       type="date"
                       value={gregDateStr}
                       onChange={(e) => setGregDateStr(e.target.value)}
-                      className="mt-1 h-9 w-full rounded-lg border border-border bg-card px-3 text-xs"
+                      className="mt-1 min-h-[42px] w-full rounded-lg border border-border bg-card px-3 text-xs"
                     />
                   </div>
-                  <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs">
+                  <label className="flex min-h-[42px] cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 text-xs">
                     <input
                       type="checkbox"
                       checked={afterSunset}
@@ -496,7 +592,7 @@ export function SuggestedFeaturesModal({
               <button
                 type="submit"
                 disabled={!title.trim()}
-                className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+                className="mt-4 inline-flex min-h-[42px] cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
               >
                 <Plus className="size-3.5" />
                 <span>Add to Calendar</span>
@@ -527,9 +623,9 @@ export function SuggestedFeaturesModal({
                       <button
                         type="button"
                         onClick={() => onRemovePersonalEvent(ev.id)}
-                        className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-red-600"
+                        className="inline-flex min-h-[36px] min-w-[36px] cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-red-600"
                       >
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-4" />
                       </button>
                     </div>
                   ))}
@@ -549,7 +645,7 @@ export function SuggestedFeaturesModal({
                 <select
                   value={selectedShabbatIdx}
                   onChange={(e) => setSelectedShabbatIdx(Number(e.target.value))}
-                  className="mt-1 h-9 rounded-lg border border-border bg-background px-3 text-xs font-medium"
+                  className="mt-1 min-h-[42px] rounded-lg border border-border bg-background px-3 text-xs font-medium"
                 >
                   {upcomingShabbatPairs.map((pair, idx) => (
                     <option key={idx} value={idx}>
@@ -571,7 +667,7 @@ export function SuggestedFeaturesModal({
               <button
                 type="button"
                 onClick={handleCopyFlyer}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+                className="inline-flex min-h-[42px] cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
               >
                 {copiedFlyer ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 <span>{copiedFlyer ? 'Copied to Clipboard!' : 'Copy Bulletin Text'}</span>
@@ -579,7 +675,7 @@ export function SuggestedFeaturesModal({
             </div>
 
             {fri && sat && (
-              <div className="rounded-2xl border border-border bg-background p-6">
+              <div className="rounded-2xl border border-border bg-background p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
                   <div>
                     <p className="text-xs font-semibold text-primary">
@@ -592,7 +688,7 @@ export function SuggestedFeaturesModal({
                       {fri.hebrewDate} – {sat.hebrewDate}, {sat.hebrewYear}
                     </p>
                   </div>
-                  <div className="text-right text-xs text-muted-foreground">
+                  <div className="text-left text-xs text-muted-foreground sm:text-right">
                     <p className="font-semibold text-foreground">
                       {fri.date.toLocaleDateString('en-US', {
                         month: 'short',
@@ -639,7 +735,7 @@ export function SuggestedFeaturesModal({
 
                   <div className="rounded-xl border border-border bg-card p-3.5">
                     <p className="text-xs font-semibold text-primary">
-                      Saturday · Shabbat Day & Motzei Shabbat
+                      Saturday · Shabbat Day &amp; Motzei Shabbat
                     </p>
                     <div className="mt-2.5 space-y-1.5 text-xs">
                       <div className="flex justify-between">

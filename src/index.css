@@ -72,9 +72,42 @@ body {
   font-family: var(--font-display);
 }
 
-.calendar-print {
+.calendar-print,
+.pdf-export-stage {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+/* Shared print-ready rules applied during jsPDF html2canvas capture */
+.pdf-export-stage .print\:hidden {
+  display: none !important;
+}
+
+.pdf-export-stage .print-agenda-view {
+  display: none !important;
+}
+
+.pdf-export-stage .print-grid-view {
+  display: grid !important;
+}
+
+.pdf-export-stage .print-month {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-stage .inter-month-page {
+  min-height: 680px;
+}
+
+.pdf-export-stage .print-area {
+  width: 100% !important;
+  max-width: none !important;
+  box-shadow: none !important;
+  background: var(--background) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
 }
 
 @media print {
@@ -85,9 +118,17 @@ body {
   html,
   body {
     background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .print\:hidden {
     display: none !important;
+  }
+  .print-agenda-view {
+    display: none !important;
+  }
+  .print-grid-view {
+    display: grid !important;
   }
   .print-month {
     break-after: page;

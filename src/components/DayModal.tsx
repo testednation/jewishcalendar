@@ -6,6 +6,7 @@ import {
   CalendarSettings,
   PersonalHebrewEvent,
   ZMANIM_LIST,
+  doesHebrewEventMatchDay,
   formatZmanTime,
 } from '../lib/calendarEngine';
 import { CalendarTheme, getThemeStyleVars } from '../lib/themes';
@@ -26,7 +27,7 @@ function ZmanRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-4 border-b border-border/60 py-2 text-xs last:border-b-0 ${
+      className={`flex items-center justify-between gap-4 border-b border-border/60 py-2.5 text-xs last:border-b-0 ${
         highlight ? 'font-semibold text-candle' : ''
       }`}
     >
@@ -81,11 +82,8 @@ export function DayModal({
     year: 'numeric',
   }).format(day.date);
 
-  const matchingHebrewEvents = personalHebrewEvents.filter(
-    (ev) =>
-      ev.hebrewDay === day.hebrewDay &&
-      (ev.hebrewMonth === day.hebrewMonthNum ||
-        (ev.hebrewMonth === 12 && (day.hebrewMonthNum === 12 || day.hebrewMonthNum === 13)))
+  const matchingHebrewEvents = personalHebrewEvents.filter((ev) =>
+    doesHebrewEventMatchDay(ev, day)
   );
 
   const handlePhotoUpload = (file?: File) => {
@@ -120,14 +118,17 @@ export function DayModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 backdrop-blur-xs sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
         style={getThemeStyleVars(theme)}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-6 text-foreground shadow-2xl"
+        className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-border bg-card p-5 pb-8 text-foreground shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:p-6"
       >
+        {/* Mobile Bottom-Sheet Drag Handle */}
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border sm:hidden" />
+
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">{fullGregDate}</p>
@@ -142,7 +143,7 @@ export function DayModal({
             type="button"
             onClick={onClose}
             aria-label="Close day details"
-            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="size-5" />
           </button>
@@ -164,14 +165,14 @@ export function DayModal({
                     <button
                       type="button"
                       onClick={() => fileRef.current?.click()}
-                      className="cursor-pointer rounded-md bg-black/65 px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80"
+                      className="min-h-[36px] cursor-pointer rounded-lg bg-black/65 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/80"
                     >
                       Change
                     </button>
                     <button
                       type="button"
                       onClick={() => onPhotoChange(undefined)}
-                      className="cursor-pointer rounded-md bg-black/65 px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80"
+                      className="min-h-[36px] cursor-pointer rounded-lg bg-black/65 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/80"
                     >
                       Remove
                     </button>
@@ -181,9 +182,9 @@ export function DayModal({
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:w-auto"
                 >
-                  <ImagePlus className="size-3.5" />
+                  <ImagePlus className="size-4" />
                   <span>Add photo to this date</span>
                 </button>
               )}
@@ -202,7 +203,7 @@ export function DayModal({
             <div className="rounded-xl border border-border bg-muted/35 p-3.5">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
                 <Sparkles className="size-3.5" />
-                <span>Holidays & Commemorations</span>
+                <span>Holidays &amp; Commemorations</span>
               </p>
               <div className="flex flex-col gap-1.5 text-xs">
                 {day.holidays.map((h, i) => (
@@ -231,7 +232,7 @@ export function DayModal({
             <div className="rounded-xl border border-border bg-muted/25 p-3.5 text-xs leading-relaxed">
               <p className="mb-2 flex items-center gap-1.5 font-semibold text-foreground">
                 <BookOpen className="size-3.5 text-primary" />
-                <span>Torah & Daily Study Schedule</span>
+                <span>Torah &amp; Daily Study Schedule</span>
               </p>
               <div className="flex flex-col gap-1 text-muted-foreground">
                 {day.jewishInfo.parsha && (
@@ -286,18 +287,30 @@ export function DayModal({
             <p className="text-xs font-semibold text-foreground">{t('cal.specialEvents')}</p>
 
             {matchingHebrewEvents.length > 0 && (
-              <div className="flex flex-col gap-1 text-xs text-chabad">
+              <div className="flex flex-col gap-1.5 text-xs text-chabad">
                 {matchingHebrewEvents.map((ev) => (
-                  <div key={ev.id} className="flex items-center justify-between">
-                    <span>
-                      {ev.category === 'yahrzeit'
-                        ? '🕯️ Yahrzeit:'
-                        : ev.category === 'birthday'
-                        ? '🎉 Hebrew Birthday:'
-                        : '💍 Anniversary:'}{' '}
-                      <strong>{ev.title}</strong>
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
+                  <div
+                    key={ev.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-candle/25 bg-candle/10 px-2.5 py-1.5"
+                  >
+                    <div>
+                      <span>
+                        {ev.category === 'yahrzeit'
+                          ? '🕯️ Yahrzeit:'
+                          : ev.category === 'birthday'
+                          ? '🎉 Hebrew Birthday:'
+                          : ev.category === 'anniversary'
+                          ? '💍 Anniversary:'
+                          : '📌 Commemoration:'}{' '}
+                        <strong className="text-foreground">{ev.title}</strong>
+                      </span>
+                      {ev.notes && (
+                        <p dir="rtl" className="mt-0.5 text-[11px] font-medium text-chabad">
+                          {ev.notes}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                       ({ev.hebrewDay} {ev.hebrewMonthName})
                     </span>
                   </div>
@@ -310,16 +323,16 @@ export function DayModal({
                 {events!.map((evText, idx) => (
                   <span
                     key={`${evText}-${idx}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-foreground"
                   >
                     <span>{evText}</span>
                     {onRemoveEvent && (
                       <button
                         type="button"
                         onClick={() => onRemoveEvent(idx)}
-                        className="cursor-pointer text-muted-foreground hover:text-red-600"
+                        className="cursor-pointer p-0.5 text-muted-foreground hover:text-red-600"
                       >
-                        <X className="size-3" />
+                        <X className="size-3.5" />
                       </button>
                     )}
                   </span>
@@ -334,12 +347,12 @@ export function DayModal({
                   value={newEventText}
                   onChange={(e) => setNewEventText(e.target.value)}
                   placeholder={t('cal.eventPlaceholder')}
-                  className="h-8 flex-1 rounded-lg border border-border bg-background px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                  className="min-h-[44px] flex-1 rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button
                   type="submit"
                   disabled={!newEventText.trim()}
-                  className="h-8 cursor-pointer rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity disabled:opacity-40"
+                  className="min-h-[44px] cursor-pointer rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-opacity disabled:opacity-40 whitespace-nowrap shrink-0"
                 >
                   {t('cal.addEvent')}
                 </button>
@@ -372,7 +385,11 @@ export function DayModal({
 
               {day.zmanim.candleLighting && (
                 <ZmanRow
-                  label={t('day.candleLighting')}
+                  label={
+                    day.zmanim.candleLightingType === 'after-nightfall'
+                      ? `${t('day.candleLighting')} (After Nightfall / Yom Tov)`
+                      : t('day.candleLighting')
+                  }
                   heLabel="הדלקת נרות"
                   value={formatZmanTime(day.zmanim.candleLighting, location.tzid, settings.hour12)}
                   highlight
@@ -382,8 +399,20 @@ export function DayModal({
 
               {day.zmanim.havdalah && (
                 <ZmanRow
-                  label={t('day.havdalahLabel')}
-                  heLabel="הבדלה"
+                  label={
+                    day.zmanim.havdalahType === 'yom-tov'
+                      ? 'Yom Tov Havdalah (Motzei Yom Tov)'
+                      : day.zmanim.havdalahType === 'yaknahaz'
+                      ? 'Havdalah · Yaknahaz (Kiddush & Havdalah)'
+                      : t('day.havdalahLabel')
+                  }
+                  heLabel={
+                    day.zmanim.havdalahType === 'yom-tov'
+                      ? 'הבדלה למוצאי יו״ט'
+                      : day.zmanim.havdalahType === 'yaknahaz'
+                      ? 'הבדלה (יקנה״ז)'
+                      : 'הבדלה'
+                  }
                   value={formatZmanTime(day.zmanim.havdalah, location.tzid, settings.hour12)}
                   highlight
                   bilingual={settings.bilingual}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   Calendar,
@@ -12,12 +12,19 @@ import {
   HeartHandshake,
   FileText,
   Scale,
+  Megaphone,
+  Rss,
+  Scissors,
+  Smartphone,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
   CalendarDay,
+  CalendarLocation,
   DEFAULT_SETTINGS,
   PRESET_LOCATIONS,
+  detectUserGeoLocation,
+  formatAutoOrgName,
   formatZmanTime,
   generateCalendar,
 } from '../lib/calendarEngine';
@@ -36,8 +43,19 @@ export function LandingView({
 }) {
   const { t } = useTranslation();
   const [selectedSampleDay, setSelectedSampleDay] = useState<CalendarDay | null>(null);
+  const [sampleLocation, setSampleLocation] = useState<CalendarLocation>(PRESET_LOCATIONS[0]);
 
-  const sampleLocation = PRESET_LOCATIONS[0]; // Crown Heights
+  useEffect(() => {
+    let cancelled = false;
+    detectUserGeoLocation(true).then((geoLoc) => {
+      if (!cancelled && geoLoc) {
+        setSampleLocation(geoLoc);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const sampleSettings = useMemo(
     () => ({
       ...DEFAULT_SETTINGS,
@@ -117,7 +135,7 @@ export function LandingView({
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar Contract: 3 zones separated by gap-8 */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-8 px-6">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:gap-8 sm:px-6">
           {/* Zone 1: Single text element wordmark */}
           <a
             href="#top"
@@ -160,7 +178,7 @@ export function LandingView({
             <button
               type="button"
               onClick={onOpenStudio}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 whitespace-nowrap shrink-0"
+              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 whitespace-nowrap shrink-0"
             >
               <span>{t('nav.openStudio')}</span>
               <ArrowRight className="size-3.5" />
@@ -176,10 +194,10 @@ export function LandingView({
           className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(49,94,203,0.09),transparent_70%)]"
         />
 
-        <div className="mx-auto max-w-7xl px-6 pb-20 pt-12 lg:pt-20">
+        <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-12 lg:pt-20">
           {/* Language & Quick Mode Toolbar */}
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="font-semibold text-primary">{t('hero.badge')}</span>
               <span aria-hidden="true">·</span>
               <span>19 Community Presets</span>
@@ -189,7 +207,7 @@ export function LandingView({
             <LanguageSwitcher />
           </div>
 
-          <div className="grid items-stretch gap-12 lg:grid-cols-[1.02fr_0.98fr]">
+          <div className="grid items-stretch gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-12">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
@@ -198,21 +216,21 @@ export function LandingView({
             >
               <h1
                 style={{ textWrap: 'balance' }}
-                className="font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.35rem]"
+                className="font-display text-3xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.35rem]"
               >
                 {t('hero.title1')}{' '}
                 <span className="text-primary">{t('hero.title2')}</span>
               </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">
                 {t('hero.desc')}
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
                 <button
                   type="button"
                   onClick={onOpenStudio}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 whitespace-nowrap shrink-0"
                 >
                   <span>{t('hero.start')}</span>
                   <ArrowRight className="size-4" />
@@ -220,7 +238,7 @@ export function LandingView({
                 <button
                   type="button"
                   onClick={onOpenSuggestions}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent whitespace-nowrap shrink-0"
                 >
                   <Sparkles className="size-4 text-primary" />
                   <span>{t('cta.exploreFeatures')}</span>
@@ -228,14 +246,14 @@ export function LandingView({
               </div>
 
               {/* Clean unboxed metadata with typographic separators */}
-              <div className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+              <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground sm:mt-10">
                 <span className="font-medium text-foreground">{t('hero.zmanimPerDay')}</span>
                 <span aria-hidden="true">·</span>
                 <span>{t('hero.customsDefault')}</span>
                 <span aria-hidden="true">·</span>
                 <span>Chitas, Daf Yomi &amp; Rambam</span>
                 <span aria-hidden="true">·</span>
-                <span className="font-mono">PDF / CSV / ICS / HTML</span>
+                <span className="font-mono">PDF / CSV / ICS / Webcal</span>
               </div>
             </motion.div>
 
@@ -245,12 +263,12 @@ export function LandingView({
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.1 }}
-              className="scroll-mt-24 flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-lg"
+              className="scroll-mt-24 flex flex-col justify-between rounded-2xl border border-border bg-card p-3.5 shadow-lg sm:p-4"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
                 <div className="flex items-center gap-2 text-xs font-medium">
                   <span className="font-semibold text-foreground">
-                    Live Interactive Sample · {sampleMonth.name} {sampleMonth.gregYear}
+                    {formatAutoOrgName(sampleLocation.city)} · {sampleMonth.name} {sampleMonth.gregYear}
                   </span>
                   <span aria-hidden="true" className="text-muted-foreground">
                     ·
@@ -258,7 +276,7 @@ export function LandingView({
                   <span className="text-chabad">{sampleMonth.hebrewLabel}</span>
                 </div>
                 <span className="text-[11px] text-muted-foreground">
-                  Crown Heights · {sampleLocation.tzid.replace(/_/g, ' ')} (Click any day)
+                  {sampleLocation.city} · Tap any day or switch Grid/Agenda
                 </span>
               </div>
 
@@ -313,19 +331,19 @@ export function LandingView({
 
       {/* Core Features Grid */}
       <section id="features" className="border-t border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold text-primary">{t('features.heading')}</p>
             <h2
               style={{ textWrap: 'balance' }}
-              className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+              className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-4xl"
             >
               {t('features.title')}
             </h2>
             <p className="mt-3 text-muted-foreground">{t('features.desc')}</p>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
             {featureItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -351,7 +369,7 @@ export function LandingView({
 
       {/* Suggested Enhancements Spotlight Section */}
       <section className="border-t border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold text-chabad">
@@ -359,25 +377,25 @@ export function LandingView({
               </p>
               <h2
                 style={{ textWrap: 'balance' }}
-                className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+                className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-4xl"
               >
-                4 Community Enhancements Ready in Studio
+                All 8 Community, Print &amp; Mobile Enhancements Ready in Studio
               </h2>
               <p className="mt-3 text-sm text-muted-foreground">
-                We cloned every feature of Luach and engineered four high-value halachic and synagogue tools directly into the workspace.
+                We cloned every feature of Luach and engineered complete synagogue fundraising, halachic, commercial print, and mobile-first tools directly into the workspace.
               </p>
             </div>
             <button
               type="button"
               onClick={onOpenSuggestions}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground whitespace-nowrap shrink-0"
+              className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground whitespace-nowrap shrink-0"
             >
               <Sparkles className="size-3.5" />
               <span>Launch Interactive Feature Tools</span>
             </button>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-border bg-card p-5">
               <CalendarRange className="size-5 text-primary" />
               <h3 className="mt-3 font-display text-base font-semibold">
@@ -417,24 +435,64 @@ export function LandingView({
                 One-click generator for any Shabbat weekend with candle lighting, Plag, Shacharit Shema cutoffs, Pirkei Avot, and Havdalah.
               </p>
             </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <Megaphone className="size-5 text-chabad" />
+              <h3 className="mt-3 font-display text-base font-semibold">
+                05. Donor Sponsor &amp; Ad-Box Grid
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Sell empty calendar grid cells ($180) and monthly footer banners ($360) to local businesses with live fundraising revenue tracking.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <Rss className="size-5 text-primary" />
+              <h3 className="mt-3 font-display text-base font-semibold">
+                06. Live Webcal Feed &amp; Halachic Clock
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Real-time countdown to the next halachic Zman, 7-day horizontal scroller, and dynamic <code>webcal://</code> calendar subscription.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <Scissors className="size-5 text-candle" />
+              <h3 className="mt-3 font-display text-base font-semibold">
+                07. Commercial Print Crop Marks
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Toggle 0.125-inch bleed guides, corner trim ticks, and registration crosshairs for 28-page saddle-stitched print shops.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <Smartphone className="size-5 text-primary" />
+              <h3 className="mt-3 font-display text-base font-semibold">
+                08. Mobile-First Touch &amp; Agenda UX
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Switch any month between a 7-column grid and a touch-friendly Agenda list, with a 4-tab mobile bottom bar and bottom-sheet modals.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
       <section id="how" className="border-t border-border bg-card/40">
-        <div className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold text-primary">{t('how.heading')}</p>
             <h2
               style={{ textWrap: 'balance' }}
-              className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl"
+              className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-4xl"
             >
               {t('how.title')}
             </h2>
           </div>
 
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:mt-12 md:grid-cols-3">
             {steps.map((step) => (
               <div
                 key={step.title}
@@ -450,7 +508,7 @@ export function LandingView({
             ))}
           </div>
 
-          <div className="mt-16 rounded-3xl border border-border bg-card p-8 sm:p-12">
+          <div className="mt-12 rounded-3xl border border-border bg-card p-6 sm:mt-16 sm:p-12">
             <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
               <div>
                 <h3 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -464,7 +522,7 @@ export function LandingView({
                 <button
                   type="button"
                   onClick={onOpenStudio}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-95 whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-95 whitespace-nowrap shrink-0"
                 >
                   <Sparkles className="size-4" />
                   <span>{t('cta.generate')}</span>

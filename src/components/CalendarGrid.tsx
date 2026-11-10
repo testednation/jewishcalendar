@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Flame,
   Sun,
@@ -7,6 +7,10 @@ import {
   Moon,
   ImagePlus,
   X,
+  LayoutGrid,
+  List,
+  Award,
+  ChevronRight,
 } from 'lucide-react';
 import {
   CalendarDay,
@@ -24,6 +28,7 @@ import {
   getEventsForDay,
   getYahrzeitsForDay,
 } from '../lib/calendarEngine';
+import { CommunitySponsor } from './SponsorGridManager';
 import { useTranslation } from '../i18n/translations';
 
 export interface BlankCellPhotoConfig {
@@ -39,23 +44,45 @@ export interface InterMonthPageConfig {
   photo?: string;
 }
 
+export function CropMarksOverlay() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -inset-3 z-20"
+    >
+      {/* Top-Left Crop Mark */}
+      <span className="absolute left-0 top-3 h-px w-2.5 bg-foreground/60" />
+      <span className="absolute left-3 top-0 h-2.5 w-px bg-foreground/60" />
+      {/* Top-Right Crop Mark */}
+      <span className="absolute right-0 top-3 h-px w-2.5 bg-foreground/60" />
+      <span className="absolute right-3 top-0 h-2.5 w-px bg-foreground/60" />
+      {/* Bottom-Left Crop Mark */}
+      <span className="absolute bottom-3 left-0 h-px w-2.5 bg-foreground/60" />
+      <span className="absolute bottom-0 left-3 h-2.5 w-px bg-foreground/60" />
+      {/* Bottom-Right Crop Mark */}
+      <span className="absolute bottom-3 right-0 h-px w-2.5 bg-foreground/60" />
+      <span className="absolute bottom-0 right-3 h-2.5 w-px bg-foreground/60" />
+      {/* Subtle 0.125" Bleed Dashed Guide */}
+      <div className="absolute inset-1.5 rounded-xs border border-dashed border-primary/25 print:border-black/20" />
+    </div>
+  );
+}
+
 function BlankCellDecoration({
   cellKey,
   photo,
   onPhotoChange,
+  sponsorAd,
 }: {
   cellKey: string;
   photo?: BlankCellPhotoConfig;
   onPhotoChange?: (key: string, next: BlankCellPhotoConfig | null) => void;
+  sponsorAd?: CommunitySponsor;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
-  if (!onPhotoChange) {
-    return <div className="min-h-[100px] bg-muted/15" />;
-  }
-
   const handleFile = (file?: File) => {
-    if (!file || !file.type.startsWith('image/') || file.size > 5_000_000) return;
+    if (!file || !file.type.startsWith('image/') || file.size > 5_000_000 || !onPhotoChange) return;
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -70,14 +97,14 @@ function BlankCellDecoration({
   };
 
   const cycleSize = () => {
-    if (!photo) return;
+    if (!photo || !onPhotoChange) return;
     const sizes: ('small' | 'medium' | 'large')[] = ['small', 'medium', 'large'];
     const nextSize = sizes[(sizes.indexOf(photo.size) + 1) % sizes.length];
     onPhotoChange(cellKey, { ...photo, size: nextSize });
   };
 
   const toggleFit = () => {
-    if (!photo) return;
+    if (!photo || !onPhotoChange) return;
     onPhotoChange(cellKey, {
       ...photo,
       fit: photo.fit === 'cover' ? 'contain' : 'cover',
@@ -86,62 +113,111 @@ function BlankCellDecoration({
 
   if (photo?.src) {
     return (
-      <div className="group relative min-h-[100px] bg-muted/20 print:bg-transparent">
+      <div className="group relative min-h-[72px] bg-muted/20 sm:min-h-[100px] print:bg-transparent">
         <img
           src={photo.src}
           alt="Calendar decoration"
           referrerPolicy="no-referrer"
           className={`w-full ${
             photo.size === 'small'
-              ? 'h-20'
+              ? 'h-16 sm:h-20'
               : photo.size === 'medium'
-              ? 'h-28'
-              : 'h-full min-h-[100px]'
+              ? 'h-20 sm:h-28'
+              : 'h-full min-h-[72px] sm:min-h-[100px]'
           } ${photo.fit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/50 to-transparent py-1 opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
-          >
-            Change
-          </button>
-          <button
-            type="button"
-            onClick={cycleSize}
-            className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
-          >
-            {photo.size}
-          </button>
-          <button
-            type="button"
-            onClick={toggleFit}
-            className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
-          >
-            {photo.fit}
-          </button>
-          <button
-            type="button"
-            onClick={() => onPhotoChange(cellKey, null)}
-            className="cursor-pointer rounded bg-black/60 p-0.5 text-white"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
+        {onPhotoChange && (
+          <>
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/50 to-transparent py-1 opacity-0 transition-opacity group-hover:opacity-100 print:hidden">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
+              >
+                Change
+              </button>
+              <button
+                type="button"
+                onClick={cycleSize}
+                className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
+              >
+                {photo.size}
+              </button>
+              <button
+                type="button"
+                onClick={toggleFit}
+                className="cursor-pointer rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-white"
+              >
+                {photo.fit}
+              </button>
+              <button
+                type="button"
+                onClick={() => onPhotoChange(cellKey, null)}
+                className="cursor-pointer rounded bg-black/60 p-0.5 text-white"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </>
+        )}
       </div>
     );
   }
 
+  if (sponsorAd) {
+    return (
+      <div className="group relative flex min-h-[72px] flex-col justify-between bg-muted/25 p-1.5 text-center sm:min-h-[100px] sm:p-2">
+        <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-chabad/35 bg-card/75 px-1.5 py-1">
+          <span className="text-[8px] font-semibold uppercase tracking-wider text-chabad">
+            Community Sponsor
+          </span>
+          <p className="mt-0.5 line-clamp-1 text-[10px] font-bold leading-tight text-foreground sm:text-[11px]">
+            {sponsorAd.businessName}
+          </p>
+          <p className="mt-0.5 hidden line-clamp-2 text-[9px] leading-tight text-muted-foreground sm:block">
+            {sponsorAd.tagline}
+          </p>
+          {sponsorAd.contact && (
+            <p className="mt-0.5 truncate font-mono text-[8.5px] font-medium text-primary">
+              {sponsorAd.contact}
+            </p>
+          )}
+        </div>
+        {onPhotoChange && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="absolute right-1 top-1 cursor-pointer rounded bg-card/90 px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground opacity-0 shadow-xs transition-opacity group-hover:opacity-100 print:hidden"
+            >
+              + Photo
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (!onPhotoChange) {
+    return <div className="min-h-[72px] bg-muted/15 sm:min-h-[100px]" />;
+  }
+
   return (
-    <div className="group relative flex min-h-[100px] items-center justify-center bg-muted/15">
+    <div className="group relative flex min-h-[72px] items-center justify-center bg-muted/15 sm:min-h-[100px]">
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
@@ -170,7 +246,7 @@ function WeeklyBannerStrip({
   onPhotoChange?: (key: string, src: string | null) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  if (!onPhotoChange) return null;
+  if (!onPhotoChange || !photo) return null;
 
   const handleFile = (file?: File) => {
     if (!file || !file.type.startsWith('image/') || file.size > 5_000_000) return;
@@ -182,10 +258,6 @@ function WeeklyBannerStrip({
     };
     reader.readAsDataURL(file);
   };
-
-  if (!photo) {
-    return null;
-  }
 
   return (
     <div className="group relative col-span-7 bg-muted/30">
@@ -269,7 +341,7 @@ export function DayCell({
     <button
       type="button"
       onClick={() => onSelectDay?.(day)}
-      className={`group relative flex min-h-[100px] cursor-pointer flex-col gap-0.5 bg-card p-2 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
+      className={`group relative flex min-h-[74px] cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-[100px] sm:p-2 ${
         day.isSaturday ? 'bg-muted/45' : ''
       } ${isYomTov ? 'bg-primary/[0.05]' : ''} ${
         hasYahrzeit ? 'bg-candle/[0.06] ring-1 ring-inset ring-candle/40' : ''
@@ -289,13 +361,13 @@ export function DayCell({
 
       <div className="relative flex items-baseline justify-between">
         <span
-          className={`font-mono text-[11px] font-semibold tabular-nums text-primary ${
+          className={`font-mono text-[10.5px] font-semibold tabular-nums text-primary sm:text-[11px] ${
             day.isToday ? 'underline decoration-2 underline-offset-2' : ''
           }`}
         >
           {day.gregDay}
         </span>
-        <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-muted-foreground tabular-nums">
+        <span className="inline-flex items-center gap-0.5 text-[8.5px] font-medium text-muted-foreground tabular-nums sm:text-[9.5px]">
           {hasYahrzeit && <Flame className="size-2.5 text-candle" />}
           <span>
             {settings.bilingual ? day.hebrewGematriya.split(' ')[0] : WEEKDAY_NAMES[day.weekday].slice(0, 1)}
@@ -303,14 +375,14 @@ export function DayCell({
         </span>
       </div>
 
-      <span className="relative text-[12px] font-semibold leading-tight tracking-tight text-chabad">
+      <span className="relative truncate text-[10px] font-semibold leading-tight tracking-tight text-chabad sm:text-[12px]">
         {day.hebrewDate}
       </span>
 
-      <div className="relative min-h-[14px]">
+      <div className="relative min-h-[12px] sm:min-h-[14px]">
         {holidayLine && (
           <span
-            className={`block truncate text-[10px] font-semibold leading-tight ${
+            className={`block truncate text-[9px] font-semibold leading-tight sm:text-[10px] ${
               isYomTov ? 'text-primary' : isChabad ? 'text-chabad' : 'text-primary/75'
             }`}
           >
@@ -320,20 +392,20 @@ export function DayCell({
       </div>
 
       {infoParts && (
-        <span className="relative block truncate text-[9.5px] font-medium leading-tight text-muted-foreground">
+        <span className="relative hidden truncate text-[9.5px] font-medium leading-tight text-muted-foreground sm:block">
           {infoParts}
         </span>
       )}
 
       {jewishOptions?.dualZmanim && (
-        <span className="relative block truncate font-mono text-[8.5px] tabular-nums text-muted-foreground/85">
+        <span className="relative hidden truncate font-mono text-[8.5px] tabular-nums text-muted-foreground/85 sm:block">
           Shema: {formatZmanTime(day.zmanim.sofZmanShmaMGA, location.tzid, settings.hour12, true)} /{' '}
           {formatZmanTime(day.zmanim.sofZmanShma, location.tzid, settings.hour12, true)}
         </span>
       )}
 
       {(events?.length ?? 0) > 0 && (
-        <span className="relative block truncate text-[9.5px] font-semibold leading-tight text-candle">
+        <span className="relative block truncate text-[8.5px] font-semibold leading-tight text-candle sm:text-[9.5px]">
           {events![0]}
           {events!.length > 1 && (
             <span className="font-medium text-muted-foreground"> +{events!.length - 1}</span>
@@ -341,33 +413,47 @@ export function DayCell({
         </span>
       )}
 
-      <div className="relative mt-auto flex items-center justify-between gap-1 pt-1">
-        {day.zmanim.candleLighting ? (
-          <span className="inline-flex max-w-full items-center gap-1 truncate font-mono text-[10px] font-medium leading-none tabular-nums text-candle">
-            <Flame className="size-3 shrink-0" />
-            <span>Candle {candleStr}</span>
+      <div className="relative mt-auto flex flex-col gap-0.5 pt-0.5 sm:pt-1">
+        {day.zmanim.candleLighting && (
+          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
+            <Flame className="size-2.5 shrink-0 sm:size-3" />
+            <span className="hidden sm:inline">
+              {day.zmanim.candleLightingType === 'after-nightfall' ? 'YT Candle' : 'Candle'}
+            </span>
+            <span>{candleStr}</span>
             {settings.bilingual && (
-              <span dir="rtl" className="shrink-0 font-sans text-[9px]">
+              <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
                 הדלקת נרות
               </span>
             )}
           </span>
-        ) : day.zmanim.havdalah ? (
-          <span className="inline-flex max-w-full items-center gap-1 truncate font-mono text-[10px] font-medium leading-none tabular-nums text-candle">
-            <Flame className="size-3 shrink-0" />
-            <span>Havdalah {havdalahStr}</span>
+        )}
+        {day.zmanim.havdalah && (
+          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
+            <Sparkles className="size-2.5 shrink-0 sm:size-3" />
+            <span className="hidden sm:inline">
+              {day.zmanim.havdalahType === 'yom-tov'
+                ? 'Yom Tov Havdalah'
+                : day.zmanim.havdalahType === 'yaknahaz'
+                ? 'Yaknahaz'
+                : 'Havdalah'}
+            </span>
+            <span className="sm:hidden">
+              {day.zmanim.havdalahType === 'yom-tov' ? 'YT Hav' : 'Hav'}
+            </span>
+            <span>{havdalahStr}</span>
             {settings.bilingual && (
-              <span dir="rtl" className="shrink-0 font-sans text-[9px]">
-                הבדלה
+              <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
+                {day.zmanim.havdalahType === 'yom-tov' ? 'הבדלה יו״ט' : 'הבדלה'}
               </span>
             )}
           </span>
-        ) : (
-          <span className="inline-flex max-w-full items-center gap-1 truncate font-mono text-[9.5px] font-medium leading-none tabular-nums text-muted-foreground">
-            <Sun className="size-2.5 shrink-0" />
+        )}
+        {!day.zmanim.candleLighting && !day.zmanim.havdalah && (
+          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8px] font-medium leading-none tabular-nums text-muted-foreground sm:gap-1 sm:text-[9.5px]">
+            <Sun className="size-2 shrink-0 sm:size-2.5" />
             <span>{sunriseStr}</span>
-            <span>·</span>
-            <span>↓ {sunsetStr}</span>
+            <span className="hidden sm:inline">· ↓ {sunsetStr}</span>
           </span>
         )}
       </div>
@@ -391,7 +477,10 @@ export function MonthCard({
   dayPhotos,
   specialEvents,
   personalHebrewEvents,
-  monthIndex,
+  monthIndex = 0,
+  sponsors = [],
+  sponsorsEnabled = false,
+  showCropMarks = false,
 }: {
   id?: string;
   month: CalendarMonth;
@@ -409,7 +498,12 @@ export function MonthCard({
   specialEvents?: Record<string, string[]>;
   personalHebrewEvents?: PersonalHebrewEvent[];
   monthIndex?: number;
+  sponsors?: CommunitySponsor[];
+  sponsorsEnabled?: boolean;
+  showCropMarks?: boolean;
 }) {
+  const [mobileLayout, setMobileLayout] = useState<'grid' | 'agenda'>('grid');
+
   const handleMonthPhotoUpload = (file?: File) => {
     if (!file || !onPhotoChange || !file.type.startsWith('image/') || file.size > 5_000_000) return;
     const reader = new FileReader();
@@ -421,16 +515,69 @@ export function MonthCard({
     reader.readAsDataURL(file);
   };
 
+  // Sponsors matching this month
+  const cellSponsors = sponsorsEnabled
+    ? sponsors.filter(
+        (sp) =>
+          (sp.tier === 'cell' || sp.tier === 'patron') &&
+          (sp.monthIndex === 'all' || sp.monthIndex === month.gregMonth)
+      )
+    : [];
+
+  const bannerSponsors = sponsorsEnabled
+    ? sponsors.filter(
+        (sp) =>
+          (sp.tier === 'banner' || sp.tier === 'patron') &&
+          (sp.monthIndex === 'all' || sp.monthIndex === month.gregMonth)
+      )
+    : [];
+
+  let blankCounter = 0;
+
+  const monthDaysList = month.weeks
+    .flat()
+    .filter((d): d is CalendarDay => d !== null);
+
   return (
-    <section id={id} className="print-month scroll-mt-24">
+    <section id={id} className="print-month relative scroll-mt-20">
+      {showCropMarks && <CropMarksOverlay />}
+
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border px-5 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3.5 sm:items-end sm:px-5 sm:py-4">
           <div>
-            <h3 className="font-display text-xl font-semibold tracking-tight text-primary">
+            <h3 className="font-display text-lg font-semibold tracking-tight text-primary sm:text-xl">
               {month.name}{' '}
               <span className="font-medium text-primary/75 tabular-nums">{month.gregYear}</span>
             </h3>
             <p className="mt-0.5 text-xs font-medium text-chabad">{month.hebrewLabel}</p>
+          </div>
+
+          {/* Mobile Grid vs Agenda View Toggle */}
+          <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5 sm:hidden print:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileLayout('grid')}
+              className={`inline-flex min-h-[34px] items-center gap-1 rounded-md px-2.5 text-xs font-medium ${
+                mobileLayout === 'grid'
+                  ? 'bg-card text-foreground shadow-xs'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <LayoutGrid className="size-3.5" />
+              <span>Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileLayout('agenda')}
+              className={`inline-flex min-h-[34px] items-center gap-1 rounded-md px-2.5 text-xs font-medium ${
+                mobileLayout === 'agenda'
+                  ? 'bg-card text-foreground shadow-xs'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <List className="size-3.5" />
+              <span>Agenda</span>
+            </button>
           </div>
 
           {photo && (
@@ -438,7 +585,7 @@ export function MonthCard({
               src={photo}
               alt={month.name}
               referrerPolicy="no-referrer"
-              className="h-16 w-28 rounded-lg object-cover border border-border"
+              className="h-14 w-24 rounded-lg border border-border object-cover sm:h-16 sm:w-28"
             />
           )}
 
@@ -467,7 +614,7 @@ export function MonthCard({
         </header>
 
         {onPhotoChange && (
-          <div className="flex items-center justify-end gap-3 border-b border-border px-5 py-1.5 print:hidden">
+          <div className="flex items-center justify-end gap-3 border-b border-border px-4 py-1.5 sm:px-5 print:hidden">
             <label className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">
               <ImagePlus className="size-3" />
               <span>{photo ? 'Change month photo' : 'Add month photo'}</span>
@@ -491,7 +638,7 @@ export function MonthCard({
         )}
 
         {month.molads.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-muted/40 px-5 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-muted/40 px-4 py-2 text-[11px] sm:px-5 sm:text-xs">
             <span className="inline-flex items-center gap-1.5 font-semibold text-chabad">
               <Moon className="size-3.5 text-primary" />
               <span>New Moon / Molad</span>
@@ -506,11 +653,115 @@ export function MonthCard({
           </div>
         )}
 
-        <div className="grid grid-cols-7 gap-px bg-border">
+        {/* Mobile Agenda List View (only visible on <640px when Agenda mode selected) */}
+        {mobileLayout === 'agenda' && (
+          <div className="print-agenda-view divide-y divide-border sm:hidden print:hidden">
+            {monthDaysList.map((day) => {
+              const mergedEvents = getEventsForDay(
+                day,
+                specialEvents ?? {},
+                personalHebrewEvents ?? []
+              );
+              const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
+              const isYomTov = day.holidays.some((h) => h.isYomTov);
+
+              return (
+                <button
+                  key={day.gregDay}
+                  type="button"
+                  onClick={() => onSelectDay?.(day)}
+                  className={`flex min-h-[60px] w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50 ${
+                    day.isSaturday ? 'bg-muted/35' : ''
+                  } ${isYomTov ? 'bg-primary/[0.05]' : ''} ${
+                    dayYahrzeits.length > 0 ? 'bg-candle/[0.06]' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex size-10 shrink-0 flex-col items-center justify-center rounded-xl border border-border bg-background">
+                      <span className="text-[9px] font-semibold uppercase text-muted-foreground">
+                        {WEEKDAY_NAMES[day.weekday]}
+                      </span>
+                      <span className="font-mono text-xs font-bold tabular-nums text-primary">
+                        {day.gregDay}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-chabad">
+                          {day.hebrewDate}
+                        </span>
+                        {day.holidays.length > 0 && (
+                          <span className="truncate text-xs font-semibold text-primary">
+                            · {day.holidays[0].name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {[
+                          day.jewishInfo.parsha,
+                          day.jewishInfo.omer,
+                          ...mergedEvents,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') ||
+                          `Sunrise ${formatZmanTime(day.zmanim.sunrise, location.tzid, settings.hour12, true)} · Sunset ${formatZmanTime(day.zmanim.sunset, location.tzid, settings.hour12, true)}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex flex-col items-end gap-0.5">
+                      {day.zmanim.candleLighting && (
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold tabular-nums text-candle">
+                          <Flame className="size-3.5" />
+                          <span>
+                            Candle{' '}
+                            {formatZmanTime(
+                              day.zmanim.candleLighting,
+                              location.tzid,
+                              settings.hour12,
+                              true
+                            )}
+                          </span>
+                        </span>
+                      )}
+                      {day.zmanim.havdalah && (
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold tabular-nums text-candle">
+                          <Sparkles className="size-3.5" />
+                          <span>
+                            {day.zmanim.havdalahType === 'yom-tov'
+                              ? 'Yom Tov Havdalah'
+                              : day.zmanim.havdalahType === 'yaknahaz'
+                              ? 'Yaknahaz'
+                              : 'Havdalah'}{' '}
+                            {formatZmanTime(
+                              day.zmanim.havdalah,
+                              location.tzid,
+                              settings.hour12,
+                              true
+                            )}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 7-Column Calendar Grid */}
+        <div
+          className={`print-grid-view grid grid-cols-7 gap-px bg-border ${
+            mobileLayout === 'agenda' ? 'hidden sm:grid print:grid' : ''
+          }`}
+        >
           {WEEKDAY_NAMES.map((dayName, idx) => (
             <div
               key={dayName}
-              className={`bg-muted/60 py-2 text-center text-[11px] font-semibold text-muted-foreground ${
+              className={`bg-muted/60 py-1.5 text-center text-[10px] font-semibold text-muted-foreground sm:py-2 sm:text-[11px] ${
                 dayName === 'Sat' ? 'bg-muted' : ''
               }`}
             >
@@ -523,7 +774,11 @@ export function MonthCard({
               const cellKey = `${wIdx}-${dIdx}`;
               if (day) {
                 const dateKey = formatDateKey(day.date);
-                const mergedEvents = getEventsForDay(day, specialEvents ?? {}, personalHebrewEvents ?? []);
+                const mergedEvents = getEventsForDay(
+                  day,
+                  specialEvents ?? {},
+                  personalHebrewEvents ?? []
+                );
                 const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
                 return (
                   <DayCell
@@ -539,18 +794,25 @@ export function MonthCard({
                   />
                 );
               }
+
+              const sponsorForBlank =
+                cellSponsors.length > 0
+                  ? cellSponsors[(monthIndex + blankCounter++) % cellSponsors.length]
+                  : undefined;
+
               return (
                 <BlankCellDecoration
                   key={cellKey}
                   cellKey={cellKey}
                   photo={blankCellPhotos?.[cellKey]}
                   onPhotoChange={onBlankCellPhotoChange}
+                  sponsorAd={sponsorForBlank}
                 />
               );
             });
 
             if (onWeekPhotoChange) {
-              const weekKey = `${monthIndex ?? 0}:${wIdx}`;
+              const weekKey = `${monthIndex}:${wIdx}`;
               cells.push(
                 <WeeklyBannerStrip
                   key={`week-banner-${weekKey}`}
@@ -563,6 +825,32 @@ export function MonthCard({
             return cells;
           })}
         </div>
+
+        {/* Monthly Sponsor Footer Banner */}
+        {bannerSponsors.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/35 px-4 py-2.5 text-xs sm:px-5">
+            {bannerSponsors.slice(0, 2).map((sp) => (
+              <div key={sp.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="inline-flex items-center gap-1 font-semibold text-chabad">
+                  <Award className="size-3.5" />
+                  <span>{sp.businessName}</span>
+                </span>
+                <span aria-hidden="true" className="text-muted-foreground">
+                  ·
+                </span>
+                <span className="text-muted-foreground">{sp.tagline}</span>
+                {sp.contact && (
+                  <>
+                    <span aria-hidden="true" className="text-muted-foreground">
+                      ·
+                    </span>
+                    <span className="font-mono font-medium text-primary">{sp.contact}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -592,7 +880,7 @@ export function InterMonthSeparatorPage({
 
   return (
     <section
-      className={`inter-month-page flex min-h-[380px] flex-col justify-center overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-xs ${className}`}
+      className={`inter-month-page flex min-h-[380px] flex-col justify-center overflow-hidden rounded-2xl border border-border bg-card p-6 text-center shadow-xs sm:p-8 ${className}`}
     >
       {page.photo && (
         <div className="mb-6 overflow-hidden rounded-xl border border-border">
@@ -623,11 +911,11 @@ export function InterMonthSeparatorPage({
       </div>
 
       {onChange && (
-        <div className="mt-6 flex items-center justify-center gap-2 print:hidden">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 print:hidden">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
           >
             <ImagePlus className="size-3.5" />
             <span>{page.photo ? 'Change photo' : 'Add photo'}</span>
@@ -636,7 +924,7 @@ export function InterMonthSeparatorPage({
             <button
               type="button"
               onClick={() => onChange({ ...page, photo: undefined })}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-red-600 hover:bg-accent"
+              className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-red-600 hover:bg-accent"
             >
               <X className="size-3.5" />
               <span>Remove photo</span>
@@ -652,7 +940,7 @@ export function InterMonthSeparatorPage({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-red-600 hover:bg-accent"
+            className="min-h-[40px] cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-red-600 hover:bg-accent"
           >
             Remove page
           </button>
@@ -678,7 +966,7 @@ export function CalendarMasthead({
   const { t } = useTranslation();
 
   return (
-    <header className="mb-8 border-b border-border pb-7">
+    <header className="print-masthead mb-8 border-b border-border pb-7">
       {photoCalendar && customPhoto && (
         <div className="mb-6 overflow-hidden rounded-2xl border border-border">
           <img
@@ -695,7 +983,7 @@ export function CalendarMasthead({
             {t('calendar.title')} · {t('calendar.subtitle')}
             {settings.cycle === 'hebrew' ? ' · Tishrei–Elul Cycle' : ''}
           </p>
-          <h2 className="mt-1.5 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-1.5 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {orgName.trim() || `Jewish Calendar of ${calendar.location.city}`}
           </h2>
         </div>
@@ -709,7 +997,7 @@ export function CalendarMasthead({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:text-sm">
         <span className="font-medium text-primary">{calendar.location.name}</span>
         <span aria-hidden="true">·</span>
         <span>{calendar.location.tzid.replace(/_/g, ' ')}</span>
@@ -726,7 +1014,7 @@ export function CalendarMasthead({
         {settings.zmanimProfile === 'chabad'
           ? 'Chabad / Baal HaTanya custom'
           : settings.zmanimProfile === 'ovadia-yosef'
-          ? 'Sephardi /Harav Ovadia Yosef custom'
+          ? 'Sephardi / Harav Ovadia Yosef custom'
           : 'Vilna Gaon (GRA) custom'}
         .
       </p>
@@ -737,10 +1025,14 @@ export function CalendarMasthead({
 export function CalendarLegend({ calendar }: { calendar: GeneratedCalendar }) {
   const { t } = useTranslation();
   return (
-    <footer className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-5 text-xs text-muted-foreground">
+    <footer className="print-legend mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-5 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1.5">
         <span className="size-3 rounded-xs bg-primary/[0.08] ring-1 ring-inset ring-primary/40" />
         <span>Major Holiday / Yom Tov</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-3 rounded-xs bg-candle/[0.1] ring-1 ring-inset ring-candle/50" />
+        <span>Yahrzeit / Commemoration</span>
       </span>
       <span className="inline-flex items-center gap-1.5">
         <Flame className="size-3.5 text-candle" />
@@ -780,6 +1072,9 @@ export function FullCalendarView({
   startMonthIndex = 0,
   interMonthPages,
   onInterMonthPageChange,
+  sponsors = [],
+  sponsorsEnabled = false,
+  showCropMarks = false,
 }: {
   calendar: GeneratedCalendar;
   settings: CalendarSettings;
@@ -803,6 +1098,9 @@ export function FullCalendarView({
   startMonthIndex?: number;
   interMonthPages?: Record<string, InterMonthPageConfig>;
   onInterMonthPageChange?: (mIdx: number, next: InterMonthPageConfig | null) => void;
+  sponsors?: CommunitySponsor[];
+  sponsorsEnabled?: boolean;
+  showCropMarks?: boolean;
 }) {
   return (
     <div
@@ -853,6 +1151,9 @@ export function FullCalendarView({
                 specialEvents={specialEvents}
                 personalHebrewEvents={personalHebrewEvents}
                 monthIndex={actualIdx}
+                sponsors={sponsors}
+                sponsorsEnabled={sponsorsEnabled}
+                showCropMarks={showCropMarks}
               />
 
               {actualIdx < calendar.months.length - 1 && interPage?.enabled && (
