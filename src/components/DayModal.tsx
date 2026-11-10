@@ -4,12 +4,15 @@ import {
   CalendarDay,
   CalendarLocation,
   CalendarSettings,
+  CustomCalendarEvent,
   PersonalHebrewEvent,
   ZMANIM_LIST,
   doesHebrewEventMatchDay,
   formatZmanTime,
+  getCustomEventsForDay,
 } from '../lib/calendarEngine';
 import { CalendarTheme, getThemeStyleVars } from '../lib/themes';
+import { MoonPhaseDisc } from './CalendarGrid';
 import { useTranslation } from '../i18n/translations';
 
 function ZmanRow({
@@ -53,8 +56,10 @@ export function DayModal({
   onPhotoChange,
   events,
   personalHebrewEvents = [],
+  customEvents = [],
   onAddEvent,
   onRemoveEvent,
+  onRemoveCustomEvent,
   onClose,
 }: {
   day: CalendarDay | null;
@@ -65,8 +70,10 @@ export function DayModal({
   onPhotoChange?: (src: string | undefined) => void;
   events?: string[];
   personalHebrewEvents?: PersonalHebrewEvent[];
+  customEvents?: CustomCalendarEvent[];
   onAddEvent?: (text: string) => void;
   onRemoveEvent?: (idx: number) => void;
+  onRemoveCustomEvent?: (id: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -85,6 +92,7 @@ export function DayModal({
   const matchingHebrewEvents = personalHebrewEvents.filter((ev) =>
     doesHebrewEventMatchDay(ev, day)
   );
+  const matchingCustomEvents = getCustomEventsForDay(day, customEvents);
 
   const handlePhotoUpload = (file?: File) => {
     if (!file || !file.type.startsWith('image/') || file.size > 5_000_000 || !onPhotoChange) return;
@@ -135,9 +143,23 @@ export function DayModal({
             <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight text-chabad">
               {day.hebrewDate}, {day.hebrewYear}
             </h3>
-            <p dir="rtl" className="mt-0.5 text-xs font-medium text-muted-foreground">
-              {day.hebrewGematriya}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p dir="rtl" className="text-xs font-medium text-muted-foreground">
+                {day.hebrewGematriya}
+              </p>
+              {day.lunarPhase && (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                  <MoonPhaseDisc phase={day.lunarPhase} className="size-3.5 text-primary" />
+                  <span>{day.lunarPhase.label}</span>
+                  <span dir="rtl" className="text-[10px] text-muted-foreground">
+                    · {day.lunarPhase.heLabel}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                    ({day.lunarPhase.illuminationPct}%)
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
           <button
             type="button"
@@ -313,6 +335,39 @@ export function DayModal({
                     <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                       ({ev.hebrewDay} {ev.hebrewMonthName})
                     </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {matchingCustomEvents.length > 0 && (
+              <div className="flex flex-col gap-1.5 text-xs">
+                {matchingCustomEvents.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-2.5 py-1.5"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-semibold text-foreground">{ev.title}</span>
+                      {ev.timeLabel && (
+                        <span className="ml-1.5 font-mono text-[11px] text-candle">
+                          · {ev.timeLabel}
+                        </span>
+                      )}
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">
+                        ({ev.recurrence === 'one-time' ? 'One-Time' : 'Recurring'})
+                      </span>
+                    </div>
+                    {onRemoveCustomEvent && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveCustomEvent(ev.id)}
+                        className="cursor-pointer p-0.5 text-muted-foreground hover:text-red-600"
+                        title="Remove custom event rule"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

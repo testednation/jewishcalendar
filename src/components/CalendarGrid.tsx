@@ -17,9 +17,11 @@ import {
   CalendarLocation,
   CalendarMonth,
   CalendarSettings,
+  CustomCalendarEvent,
   GeneratedCalendar,
   HEBREW_WEEKDAY_LETTERS,
   JewishInfoOptions,
+  LunarPhaseInfo,
   PersonalHebrewEvent,
   WEEKDAY_NAMES,
   formatDateKey,
@@ -65,6 +67,73 @@ export function CropMarksOverlay() {
       {/* Subtle 0.125" Bleed Dashed Guide */}
       <div className="absolute inset-1.5 rounded-xs border border-dashed border-primary/25 print:border-black/20" />
     </div>
+  );
+}
+
+export function MoonPhaseDisc({
+  phase,
+  className = 'size-3',
+}: {
+  phase: LunarPhaseInfo;
+  className?: string;
+}) {
+  const r = 4.6;
+  const cx = 6;
+  const cy = 6;
+  const topY = cy - r;
+  const botY = cy + r;
+
+  const isWaxing = phase.ageFraction <= 0.5;
+  const cosPhase = Math.cos(phase.ageFraction * 2 * Math.PI);
+  const rx = Math.max(0.05, Math.abs(cosPhase) * r);
+
+  // Outer semicircle sweep: 1 = right limb (waxing), 0 = left limb (waning)
+  const outerSweep = isWaxing ? 1 : 0;
+  // Terminator elliptical arc sweep from bottom back to top
+  const termSweep = isWaxing
+    ? phase.ageFraction < 0.25
+      ? 0
+      : 1
+    : phase.ageFraction < 0.75
+    ? 0
+    : 1;
+
+  const litPath = `M ${cx} ${topY} A ${r} ${r} 0 0 ${outerSweep} ${cx} ${botY} A ${rx.toFixed(
+    2
+  )} ${r} 0 0 ${termSweep} ${cx} ${topY} Z`;
+
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      aria-label={`${phase.label} (${phase.illuminationPct}% illuminated)`}
+      className={`shrink-0 ${className}`}
+    >
+      <title>{`${phase.label} · ${phase.illuminationPct}% illuminated`}</title>
+      {/* Shadowed lunar base */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="currentColor"
+        className=" opacity-15"
+      />
+      {/* Illuminated lunar hemisphere */}
+      {phase.kind === 'full' ? (
+        <circle cx={cx} cy={cy} r={r} fill="currentColor" />
+      ) : phase.kind !== 'new' ? (
+        <path d={litPath} fill="currentColor" />
+      ) : null}
+      {/* Crisp outer lunar rim */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="0.95"
+        className="opacity-75"
+      />
+    </svg>
   );
 }
 
@@ -359,7 +428,7 @@ export function DayCell({
         </>
       )}
 
-      <div className="relative flex items-baseline justify-between">
+      <div className="relative flex items-center justify-between gap-1">
         <span
           className={`font-mono text-[10.5px] font-semibold tabular-nums text-primary sm:text-[11px] ${
             day.isToday ? 'underline decoration-2 underline-offset-2' : ''
@@ -367,8 +436,26 @@ export function DayCell({
         >
           {day.gregDay}
         </span>
-        <span className="inline-flex items-center gap-0.5 text-[8.5px] font-medium text-muted-foreground tabular-nums sm:text-[9.5px]">
+        <span className="inline-flex items-center gap-1 text-[8.5px] font-medium text-muted-foreground tabular-nums sm:text-[9.5px]">
           {hasYahrzeit && <Flame className="size-2.5 text-candle" />}
+          {(jewishOptions?.moonPhase ?? true) && (
+            <span
+              className={`inline-flex items-center gap-0.5 ${
+                day.lunarPhase.isKeyPhase ? 'text-chabad font-semibold' : 'text-muted-foreground/85'
+              }`}
+              title={`${day.lunarPhase.label} (${day.lunarPhase.illuminationPct}% lit)`}
+            >
+              <MoonPhaseDisc
+                phase={day.lunarPhase}
+                className="size-2.5 sm:size-3"
+              />
+              {day.lunarPhase.isKeyPhase && (
+                <span className="hidden text-[8px] leading-none lg:inline">
+                  {day.lunarPhase.shortLabel}
+                </span>
+              )}
+            </span>
+          )}
           <span>
             {settings.bilingual ? day.hebrewGematriya.split(' ')[0] : WEEKDAY_NAMES[day.weekday].slice(0, 1)}
           </span>
@@ -477,6 +564,7 @@ export function MonthCard({
   dayPhotos,
   specialEvents,
   personalHebrewEvents,
+  customEvents,
   monthIndex = 0,
   sponsors = [],
   sponsorsEnabled = false,
@@ -497,6 +585,7 @@ export function MonthCard({
   dayPhotos?: Record<string, string>;
   specialEvents?: Record<string, string[]>;
   personalHebrewEvents?: PersonalHebrewEvent[];
+  customEvents?: CustomCalendarEvent[];
   monthIndex?: number;
   sponsors?: CommunitySponsor[];
   sponsorsEnabled?: boolean;
@@ -660,7 +749,8 @@ export function MonthCard({
               const mergedEvents = getEventsForDay(
                 day,
                 specialEvents ?? {},
-                personalHebrewEvents ?? []
+                personalHebrewEvents ?? [],
+                customEvents ?? []
               );
               const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
               const isYomTov = day.holidays.some((h) => h.isYomTov);
@@ -690,6 +780,15 @@ export function MonthCard({
                         <span className="text-xs font-semibold text-chabad">
                           {day.hebrewDate}
                         </span>
+                        {(jewishOptions?.moonPhase ?? true) && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground"
+                            title={`${day.lunarPhase.label} (${day.lunarPhase.illuminationPct}%)`}
+                          >
+                            <MoonPhaseDisc phase={day.lunarPhase} className="size-3 text-chabad" />
+                            <span>{day.lunarPhase.illuminationPct}%</span>
+                          </span>
+                        )}
                         {day.holidays.length > 0 && (
                           <span className="truncate text-xs font-semibold text-primary">
                             · {day.holidays[0].name}
@@ -777,7 +876,8 @@ export function MonthCard({
                 const mergedEvents = getEventsForDay(
                   day,
                   specialEvents ?? {},
-                  personalHebrewEvents ?? []
+                  personalHebrewEvents ?? [],
+                  customEvents ?? []
                 );
                 const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
                 return (
@@ -1042,6 +1142,10 @@ export function CalendarLegend({ calendar }: { calendar: GeneratedCalendar }) {
         <Sun className="size-3.5" />
         <span>Sunrise · Sunset</span>
       </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Moon className="size-3.5 text-chabad" />
+        <span>Lunar Cycle / Moon Phase</span>
+      </span>
       <span className="ml-auto hidden sm:inline">
         {t('cal.legend.timesLocal')} {calendar.location.name}
       </span>
@@ -1069,6 +1173,7 @@ export function FullCalendarView({
   dayPhotos,
   specialEvents,
   personalHebrewEvents,
+  customEvents,
   startMonthIndex = 0,
   interMonthPages,
   onInterMonthPageChange,
@@ -1095,6 +1200,7 @@ export function FullCalendarView({
   dayPhotos?: Record<string, string>;
   specialEvents?: Record<string, string[]>;
   personalHebrewEvents?: PersonalHebrewEvent[];
+  customEvents?: CustomCalendarEvent[];
   startMonthIndex?: number;
   interMonthPages?: Record<string, InterMonthPageConfig>;
   onInterMonthPageChange?: (mIdx: number, next: InterMonthPageConfig | null) => void;
@@ -1150,6 +1256,7 @@ export function FullCalendarView({
                 dayPhotos={dayPhotos}
                 specialEvents={specialEvents}
                 personalHebrewEvents={personalHebrewEvents}
+                customEvents={customEvents}
                 monthIndex={actualIdx}
                 sponsors={sponsors}
                 sponsorsEnabled={sponsorsEnabled}

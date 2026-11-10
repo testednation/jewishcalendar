@@ -35,6 +35,7 @@ export interface JewishInfoOptions {
   rambam: boolean;
   fastDetails: boolean;
   dualZmanim?: boolean;
+  moonPhase?: boolean;
 }
 
 export interface CalendarSettings {
@@ -57,6 +58,29 @@ export interface PersonalHebrewEvent {
   hebrewMonth: number; // 1 = Nissan ... 7 = Tishrei ... 12 = Adar
   hebrewMonthName: string;
   notes?: string;
+}
+
+export type CustomEventRecurrence =
+  | 'one-time'
+  | 'weekly'
+  | 'monthly-gregorian'
+  | 'monthly-hebrew'
+  | 'yearly-gregorian'
+  | 'yearly-hebrew';
+
+export interface CustomCalendarEvent {
+  id: string;
+  title: string;
+  timeLabel?: string;
+  category: 'community' | 'shiur' | 'simcha' | 'holiday-program' | 'reminder';
+  recurrence: CustomEventRecurrence;
+  dateKey?: string; // YYYY-MM-DD for 'one-time'
+  weekday?: number; // 0..6 for 'weekly'
+  gregMonth?: number; // 0..11 for 'yearly-gregorian'
+  gregDay?: number; // 1..31 for 'monthly-gregorian' | 'yearly-gregorian'
+  hebrewMonth?: number; // 1..12 for 'yearly-hebrew'
+  hebrewMonthName?: string;
+  hebrewDay?: number; // 1..30 for 'monthly-hebrew' | 'yearly-hebrew'
 }
 
 export interface DayZmanim {
@@ -99,6 +123,26 @@ export interface DayJewishInfo {
   fastDetails?: string;
 }
 
+export type LunarPhaseKind =
+  | 'new'
+  | 'waxing-crescent'
+  | 'first-quarter'
+  | 'waxing-gibbous'
+  | 'full'
+  | 'waning-gibbous'
+  | 'last-quarter'
+  | 'waning-crescent';
+
+export interface LunarPhaseInfo {
+  kind: LunarPhaseKind;
+  label: string;
+  shortLabel: string;
+  heLabel: string;
+  illuminationPct: number;
+  ageFraction: number;
+  isKeyPhase: boolean;
+}
+
 export interface CalendarDay {
   date: Date;
   gregDay: number;
@@ -111,6 +155,7 @@ export interface CalendarDay {
   hebrewYear: number;
   hebrewDate: string;
   hebrewGematriya: string;
+  lunarPhase: LunarPhaseInfo;
   holidays: DayHolidayItem[];
   jewishInfo: DayJewishInfo;
   zmanim: DayZmanim;
@@ -821,6 +866,70 @@ export function formatMoladAnnouncement(molad: MoladInfo, hour12: boolean): stri
   return `Molad ${molad.hebrewMonth} ${molad.hebrewYear}: ${dateStr}, ${timeStr}${chalakimPart}`;
 }
 
+export function computeLunarPhase(hebrewDay: number): LunarPhaseInfo {
+  const synodicDays = 29.53059;
+  const normalizedDay = hebrewDay === 30 ? 0.2 : Math.max(0, hebrewDay - 1);
+  const ageFraction = Math.max(0, Math.min(1, normalizedDay / synodicDays));
+  const illuminationPct = Math.round(((1 - Math.cos(ageFraction * 2 * Math.PI)) / 2) * 100);
+
+  let kind: LunarPhaseKind = 'waxing-crescent';
+  let label = 'Waxing Crescent';
+  let shortLabel = 'Waxing';
+  let heLabel = 'סהר מתמלא';
+
+  if (hebrewDay === 1 || hebrewDay === 30) {
+    kind = 'new';
+    label = 'New Moon (Rosh Chodesh)';
+    shortLabel = 'New Moon';
+    heLabel = 'מולד הלבנה';
+  } else if (hebrewDay >= 2 && hebrewDay <= 6) {
+    kind = 'waxing-crescent';
+    label = 'Waxing Crescent';
+    shortLabel = 'Waxing';
+    heLabel = 'סהר מתמלא';
+  } else if (hebrewDay === 7 || hebrewDay === 8) {
+    kind = 'first-quarter';
+    label = 'First Quarter Moon';
+    shortLabel = '1st Qtr';
+    heLabel = 'רבע ראשון';
+  } else if (hebrewDay >= 9 && hebrewDay <= 13) {
+    kind = 'waxing-gibbous';
+    label = 'Waxing Gibbous';
+    shortLabel = 'Waxing';
+    heLabel = 'ירח מתמלא';
+  } else if (hebrewDay >= 14 && hebrewDay <= 16) {
+    kind = 'full';
+    label = 'Full Moon';
+    shortLabel = 'Full Moon';
+    heLabel = 'ירח מלא';
+  } else if (hebrewDay >= 17 && hebrewDay <= 21) {
+    kind = 'waning-gibbous';
+    label = 'Waning Gibbous';
+    shortLabel = 'Waning';
+    heLabel = 'ירח מתמעט';
+  } else if (hebrewDay === 22 || hebrewDay === 23) {
+    kind = 'last-quarter';
+    label = 'Last Quarter Moon';
+    shortLabel = 'Last Qtr';
+    heLabel = 'רבע אחרון';
+  } else {
+    kind = 'waning-crescent';
+    label = 'Waning Crescent';
+    shortLabel = 'Waning';
+    heLabel = 'סהר מתמעט';
+  }
+
+  return {
+    kind,
+    label,
+    shortLabel,
+    heLabel,
+    illuminationPct,
+    ageFraction,
+    isKeyPhase: hebrewDay === 1 || hebrewDay === 8 || hebrewDay === 15 || hebrewDay === 22,
+  };
+}
+
 export function generateCalendar(
   year: number,
   location: CalendarLocation,
@@ -888,6 +997,7 @@ export function generateCalendar(
 
       const zmanim = computeDayZmanim(hebcalLoc, dateObj, settings, isYomTovToday, isYomTovTomorrow);
       const jewishInfo = computeDayJewishInfo(dateObj, hd, isIsrael, settings, zmanim, holidaysToday);
+      const lunarPhase = computeLunarPhase(hd.getDate());
 
       const dayItem: CalendarDay = {
         date: dateObj,
@@ -901,6 +1011,7 @@ export function generateCalendar(
         hebrewYear: hd.getFullYear(),
         hebrewDate: `${hd.getDate()} ${normalizeHebrewName(hd.getMonthName())}`,
         hebrewGematriya: hd.renderGematriya(),
+        lunarPhase,
         holidays: holidaysToday,
         jewishInfo,
         zmanim,
@@ -1002,14 +1113,75 @@ export function findYahrzeitOccurrencesInCalendar(
   return matches;
 }
 
+export function doesCustomEventMatchDay(
+  ev: CustomCalendarEvent,
+  day: CalendarDay
+): boolean {
+  switch (ev.recurrence) {
+    case 'one-time':
+      return Boolean(ev.dateKey && formatDateKey(day.date) === ev.dateKey);
+    case 'weekly':
+      return ev.weekday !== undefined && day.weekday === ev.weekday;
+    case 'monthly-gregorian':
+      return ev.gregDay !== undefined && day.gregDay === ev.gregDay;
+    case 'monthly-hebrew':
+      return ev.hebrewDay !== undefined && day.hebrewDay === ev.hebrewDay;
+    case 'yearly-gregorian':
+      return (
+        ev.gregMonth !== undefined &&
+        ev.gregDay !== undefined &&
+        day.gregMonth === ev.gregMonth &&
+        day.gregDay === ev.gregDay
+      );
+    case 'yearly-hebrew':
+      if (ev.hebrewDay !== day.hebrewDay || ev.hebrewMonth === undefined) return false;
+      if (ev.hebrewMonth === 12 && (day.hebrewMonthNum === 12 || day.hebrewMonthNum === 13)) {
+        return true;
+      }
+      return ev.hebrewMonth === day.hebrewMonthNum;
+    default:
+      return false;
+  }
+}
+
+export function getCustomEventsForDay(
+  day: CalendarDay,
+  customEvents: CustomCalendarEvent[] = []
+): CustomCalendarEvent[] {
+  return customEvents.filter((ev) => doesCustomEventMatchDay(ev, day));
+}
+
+export function findCustomEventOccurrencesInCalendar(
+  ev: CustomCalendarEvent,
+  calendar: GeneratedCalendar
+): { day: CalendarDay; monthIndex: number; monthName: string }[] {
+  const matches: { day: CalendarDay; monthIndex: number; monthName: string }[] = [];
+  calendar.months.forEach((month, mIdx) => {
+    for (const week of month.weeks) {
+      for (const day of week) {
+        if (day && doesCustomEventMatchDay(ev, day)) {
+          matches.push({ day, monthIndex: mIdx, monthName: month.name });
+        }
+      }
+    }
+  });
+  return matches;
+}
+
+export function formatCustomEventDisplay(ev: CustomCalendarEvent): string {
+  const timeSuffix = ev.timeLabel?.trim() ? ` (${ev.timeLabel.trim()})` : '';
+  return `${ev.title}${timeSuffix}`;
+}
+
 export function getEventsForDay(
   day: CalendarDay,
   specialEvents: Record<string, string[]>,
-  personalHebrewEvents: PersonalHebrewEvent[] = []
+  personalHebrewEvents: PersonalHebrewEvent[] = [],
+  customEvents: CustomCalendarEvent[] = []
 ): string[] {
   const key = formatDateKey(day.date);
   const direct = specialEvents[key] ?? [];
-  const recurring = personalHebrewEvents
+  const recurringHebrew = personalHebrewEvents
     .filter((ev) => doesHebrewEventMatchDay(ev, day))
     .map((ev) => {
       const prefix =
@@ -1022,7 +1194,10 @@ export function getEventsForDay(
           : '📌';
       return `${prefix} ${ev.title}`;
     });
-  return [...recurring, ...direct];
+  const matchedCustom = customEvents
+    .filter((ev) => doesCustomEventMatchDay(ev, day))
+    .map((ev) => formatCustomEventDisplay(ev));
+  return [...recurringHebrew, ...matchedCustom, ...direct];
 }
 
 // Geocoding & Timezone Utilities
@@ -1318,7 +1493,8 @@ export function generateCsvContent(
   calendar: GeneratedCalendar,
   settings: CalendarSettings,
   specialEvents: Record<string, string[]>,
-  personalHebrewEvents: PersonalHebrewEvent[] = []
+  personalHebrewEvents: PersonalHebrewEvent[] = [],
+  customEvents: CustomCalendarEvent[] = []
 ): string {
   const fmt = (d: Date | null) => formatZmanTime(d, calendar.location.tzid, settings.hour12);
   const rows: string[][] = [CSV_HEADERS];
@@ -1327,7 +1503,12 @@ export function generateCsvContent(
     for (const week of month.weeks) {
       for (const day of week) {
         if (!day) continue;
-        const dayEvents = getEventsForDay(day, specialEvents, personalHebrewEvents);
+        const dayEvents = getEventsForDay(
+          day,
+          specialEvents,
+          personalHebrewEvents,
+          customEvents
+        );
         rows.push([
           formatDateKey(day.date),
           WEEKDAY_NAMES[day.weekday],
@@ -1384,7 +1565,8 @@ function formatIcsDateOnly(date: Date): string {
 export function generateIcsContent(
   calendar: GeneratedCalendar,
   specialEvents: Record<string, string[]>,
-  personalHebrewEvents: PersonalHebrewEvent[] = []
+  personalHebrewEvents: PersonalHebrewEvent[] = [],
+  customEvents: CustomCalendarEvent[] = []
 ): string {
   const tzid = calendar.location.tzid;
   const lines = [
@@ -1444,7 +1626,12 @@ export function generateIcsContent(
               : `Havdalah (${calendar.location.city})`;
           pushTimed(day.zmanim.havdalah, havdalahSummary);
         }
-        for (const ev of getEventsForDay(day, specialEvents, personalHebrewEvents)) {
+        for (const ev of getEventsForDay(
+          day,
+          specialEvents,
+          personalHebrewEvents,
+          customEvents
+        )) {
           pushAllDay(day.date, ev);
         }
       }
@@ -1482,6 +1669,7 @@ export interface PdfExportOptions {
   showCropMarks?: boolean;
   backgroundColor?: string;
   title?: string;
+  resolution?: 'high' | 'standard';
   onProgress?: (currentPage: number, totalPages: number, label: string) => void;
 }
 
@@ -1708,14 +1896,17 @@ export async function exportCalendarToPdf(
       holder.innerHTML = '';
       holder.appendChild(node);
 
+      const renderScale = options.resolution === 'standard' ? 1.75 : 2.5;
+      const jpegQuality = options.resolution === 'standard' ? 0.9 : 0.97;
+
       const canvas = await html2canvas(node, {
-        scale: 2,
+        scale: renderScale,
         useCORS: true,
         backgroundColor: paperBg,
         logging: false,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
       const naturalRatio = canvas.height / canvas.width;
 
       let drawW = availW;

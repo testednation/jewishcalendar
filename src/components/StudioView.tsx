@@ -16,6 +16,7 @@ import {
   MapPin,
   Maximize2,
   Minimize2,
+  Moon,
   Palette,
   Plus,
   Printer,
@@ -35,6 +36,7 @@ import {
   CalendarLocation,
   CalendarSettings,
   CitySearchResult,
+  CustomCalendarEvent,
   DEFAULT_SETTINGS,
   JewishInfoOptions,
   MinhagType,
@@ -74,6 +76,7 @@ import {
   InterMonthPageConfig,
   InterMonthSeparatorPage,
   MonthCard,
+  MoonPhaseDisc,
 } from './CalendarGrid';
 import { DayModal } from './DayModal';
 import { SuggestedFeaturesModal } from './SuggestedFeaturesModal';
@@ -85,6 +88,8 @@ import {
 } from './SponsorGridManager';
 import { TodayZmanimView } from './TodayZmanimView';
 import { ThemeCustomizerPanel } from './ThemeCustomizerPanel';
+import { ExportMenu } from './ExportMenu';
+import { CustomEventsManager, DEFAULT_CUSTOM_EVENTS } from './CustomEventsManager';
 import { LanguageSwitcher, LogoMark } from './LogoMark';
 import { useTranslation } from '../i18n/translations';
 
@@ -196,6 +201,9 @@ export function StudioView({
       },
     ]
   );
+  const [customEvents, setCustomEvents] = useState<CustomCalendarEvent[]>(
+    savedState?.customEvents ?? DEFAULT_CUSTOM_EVENTS
+  );
 
   // Community Sponsors & Ad-Box Grid state
   const [sponsors, setSponsors] = useState<CommunitySponsor[]>(
@@ -251,21 +259,20 @@ export function StudioView({
   );
 
   // Jewish info toggles
-  const [jewishOptions, setJewishOptions] = useState<JewishInfoOptions>(
-    savedState?.jewishOptions ?? {
-      parsha: true,
-      pirkeiAvot: true,
-      omer: true,
-      birkatHaChodesh: true,
-      kiddushLevana: true,
-      chitas: true,
-      hayomYom: false,
-      dafYomi: false,
-      rambam: false,
-      fastDetails: true,
-      dualZmanim: false,
-    }
-  );
+  const [jewishOptions, setJewishOptions] = useState<JewishInfoOptions>(() => ({
+    parsha: savedState?.jewishOptions?.parsha ?? true,
+    pirkeiAvot: savedState?.jewishOptions?.pirkeiAvot ?? true,
+    omer: savedState?.jewishOptions?.omer ?? true,
+    birkatHaChodesh: savedState?.jewishOptions?.birkatHaChodesh ?? true,
+    kiddushLevana: savedState?.jewishOptions?.kiddushLevana ?? true,
+    chitas: savedState?.jewishOptions?.chitas ?? true,
+    hayomYom: savedState?.jewishOptions?.hayomYom ?? false,
+    dafYomi: savedState?.jewishOptions?.dafYomi ?? false,
+    rambam: savedState?.jewishOptions?.rambam ?? false,
+    fastDetails: savedState?.jewishOptions?.fastDetails ?? true,
+    dualZmanim: savedState?.jewishOptions?.dualZmanim ?? false,
+    moonPhase: savedState?.jewishOptions?.moonPhase ?? true,
+  }));
 
   const [location, setLocation] = useState<CalendarLocation>(defaultLoc);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(true);
@@ -287,6 +294,7 @@ export function StudioView({
   const [manualTz, setManualTz] = useState('');
   const [detectingTz, setDetectingTz] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [pdfResolution, setPdfResolution] = useState<'high' | 'standard'>('high');
   const [pdfProgress, setPdfProgress] = useState<{
     current: number;
     total: number;
@@ -350,6 +358,7 @@ export function StudioView({
           dayPhotos,
           specialEvents,
           personalHebrewEvents,
+          customEvents,
           sponsors,
           sponsorsEnabled,
           startFromCurrent,
@@ -390,6 +399,7 @@ export function StudioView({
     dayPhotos,
     specialEvents,
     personalHebrewEvents,
+    customEvents,
     sponsors,
     sponsorsEnabled,
     startFromCurrent,
@@ -602,10 +612,15 @@ export function StudioView({
     window.print();
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (resOverride?: 'high' | 'standard') => {
     if (!printContainerRef.current || exportingPdf) return;
+    const effectiveRes = resOverride ?? pdfResolution;
     setExportingPdf(true);
-    setPdfProgress({ current: 1, total: 12, label: 'Preparing print layout…' });
+    setPdfProgress({
+      current: 1,
+      total: 12,
+      label: effectiveRes === 'high' ? 'Rendering 300 DPI Print PDF…' : 'Rendering PDF…',
+    });
     try {
       await exportCalendarToPdf(
         printContainerRef.current,
@@ -618,12 +633,17 @@ export function StudioView({
           showCropMarks,
           backgroundColor: activeTheme.tokens.background,
           title: `${orgName} — ${year}`,
+          resolution: effectiveRes,
           onProgress: (current, total, label) => {
             setPdfProgress({ current, total, label });
           },
         }
       );
-      notify(`Print-ready PDF downloaded (${paperSize.toUpperCase()} ${orientation})`);
+      notify(
+        `High-resolution PDF downloaded (${paperSize.toUpperCase()} ${orientation}, ${
+          effectiveRes === 'high' ? '300 DPI' : '150 DPI'
+        })`
+      );
     } catch {
       notify('PDF generation completed via browser print.');
       window.print();
@@ -634,13 +654,24 @@ export function StudioView({
   };
 
   const handleExportCsv = () => {
-    const csv = generateCsvContent(calendar, settings, specialEvents, personalHebrewEvents);
+    const csv = generateCsvContent(
+      calendar,
+      settings,
+      specialEvents,
+      personalHebrewEvents,
+      customEvents
+    );
     triggerFileDownload(`luach-${slugify(location.city)}-${year}.csv`, csv, 'text/csv');
     notify('CSV spreadsheet downloaded');
   };
 
   const handleExportIcs = () => {
-    const ics = generateIcsContent(calendar, specialEvents, personalHebrewEvents);
+    const ics = generateIcsContent(
+      calendar,
+      specialEvents,
+      personalHebrewEvents,
+      customEvents
+    );
     triggerFileDownload(`luach-${slugify(location.city)}-${year}.ics`, ics, 'text/calendar');
     notify('ICS calendar file downloaded');
   };
@@ -754,6 +785,28 @@ export function StudioView({
               </span>
             )}
             <LanguageSwitcher />
+            <ExportMenu
+              orgName={orgName}
+              locationName={location.name}
+              year={year}
+              cycle={cycle}
+              themeName={activeTheme.name}
+              paperSize={paperSize}
+              orientation={orientation}
+              monthsPerPage={effectiveMpp}
+              showCropMarks={showCropMarks}
+              yahrzeitsCount={personalHebrewEvents.length}
+              exportingPdf={exportingPdf}
+              pdfProgress={pdfProgress}
+              pdfResolution={pdfResolution}
+              onChangePdfResolution={setPdfResolution}
+              onExportPdf={(res) => handleExportPdf(res)}
+              onExportCsv={handleExportCsv}
+              onExportIcs={handleExportIcs}
+              onPrint={handlePrint}
+              onExportOfflineHtml={handleExportOfflineHtml}
+              align="right"
+            />
             <button
               type="button"
               onClick={() => setShowSuggestionsModal(true)}
@@ -1113,6 +1166,33 @@ export function StudioView({
               }}
             />
 
+            {/* Add Custom Event Manager (One-Time & Recurring Events) */}
+            <CustomEventsManager
+              calendar={calendar}
+              customEvents={customEvents}
+              onAddCustomEvent={(ev) => {
+                setCustomEvents((prev) => [ev, ...prev]);
+                notify(
+                  `Added ${ev.recurrence === 'one-time' ? 'one-time' : 'recurring'} event: ${ev.title}`
+                );
+              }}
+              onRemoveCustomEvent={(id) => {
+                setCustomEvents((prev) => prev.filter((item) => item.id !== id));
+                notify('Removed custom event from calendar');
+              }}
+              onLocateDay={(day, mIdx) => {
+                setPreviewMode('continuous');
+                setDesktopMainTab('calendar');
+                setMobileTab('calendar');
+                setTimeout(() => {
+                  document
+                    .getElementById(`month-${mIdx}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setSelectedDay(day);
+                }, 80);
+              }}
+            />
+
             {/* Community Sponsor & Ad-Box Grid Component */}
             <SponsorGridManager
               sponsors={sponsors}
@@ -1273,31 +1353,49 @@ export function StudioView({
                 </div>
               )}
 
+              {/* PDF Resolution Option inside Sidebar Export Card */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="block text-xs font-medium">PDF Resolution</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    300 DPI print-shop or standard
+                  </span>
+                </div>
+                <select
+                  value={pdfResolution}
+                  onChange={(e) => setPdfResolution(e.target.value as 'high' | 'standard')}
+                  className="min-h-[38px] w-36 rounded-lg border border-border bg-background px-2 text-xs font-medium"
+                >
+                  <option value="high">High-Res (300 DPI)</option>
+                  <option value="standard">Standard (150 DPI)</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={handlePrint}
-                  className="inline-flex min-h-[42px] cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-xs font-semibold text-primary-foreground hover:opacity-95 whitespace-nowrap shrink-0"
-                >
-                  <Printer className="size-3.5" />
-                  <span>{t('dash.export.print')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportPdf}
+                  onClick={() => handleExportPdf(pdfResolution)}
                   disabled={exportingPdf}
-                  className="inline-flex min-h-[42px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-semibold hover:bg-accent disabled:opacity-50 whitespace-nowrap shrink-0"
+                  className="inline-flex min-h-[42px] cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-xs font-semibold text-primary-foreground hover:opacity-95 disabled:opacity-50 whitespace-nowrap shrink-0"
                 >
                   {exportingPdf ? (
-                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                    <Loader2 className="size-3.5 animate-spin" />
                   ) : (
-                    <Download className="size-3.5 text-primary" />
+                    <Download className="size-3.5" />
                   )}
                   <span>
                     {exportingPdf && pdfProgress
                       ? `PDF (${pdfProgress.current}/${pdfProgress.total})`
-                      : t('dash.export.pdf')}
+                      : 'High-Res PDF'}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="inline-flex min-h-[42px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-semibold hover:bg-accent whitespace-nowrap shrink-0"
+                >
+                  <Printer className="size-3.5 text-primary" />
+                  <span>{t('dash.export.print')}</span>
                 </button>
               </div>
 
@@ -1366,6 +1464,87 @@ export function StudioView({
                   </p>
 
                   <div className="mt-4 flex flex-col gap-3.5">
+                    {/* Featured Lunar Cycle / Moon Phase Display Toggle */}
+                    <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3">
+                      <label className="flex cursor-pointer items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                            <Moon className="size-4" />
+                          </span>
+                          <div>
+                            <span className="block text-xs font-semibold text-foreground">
+                              Show Lunar Cycle / Moon Phase in Daily Cells
+                            </span>
+                            <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                              Displays a daily synodic moon disc &amp; key lunar milestones (Molad, 1st Qtr, Full Moon on the 15th, Last Qtr).
+                            </span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={jewishOptions.moonPhase ?? true}
+                          onChange={(e) =>
+                            setJewishOptions((prev) => ({
+                              ...prev,
+                              moonPhase: e.target.checked,
+                            }))
+                          }
+                          className="mt-1 size-4 shrink-0 accent-primary"
+                        />
+                      </label>
+
+                      {(jewishOptions.moonPhase ?? true) && (
+                        <div className="mt-2.5 grid grid-cols-4 gap-1.5 border-t border-border/60 pt-2.5 text-[10px]">
+                          {[
+                            {
+                              kind: 'new' as const,
+                              label: 'Day 1 · Molad',
+                              heLabel: 'מולד',
+                              illuminationPct: 0,
+                              ageFraction: 0,
+                              shortLabel: 'New Moon',
+                              isKeyPhase: true,
+                            },
+                            {
+                              kind: 'first-quarter' as const,
+                              label: 'Day 8 · 1st Qtr',
+                              heLabel: 'רבע ראשון',
+                              illuminationPct: 50,
+                              ageFraction: 0.25,
+                              shortLabel: '1st Qtr',
+                              isKeyPhase: true,
+                            },
+                            {
+                              kind: 'full' as const,
+                              label: 'Day 15 · Full',
+                              heLabel: 'ירח מלא',
+                              illuminationPct: 100,
+                              ageFraction: 0.5,
+                              shortLabel: 'Full Moon',
+                              isKeyPhase: true,
+                            },
+                            {
+                              kind: 'last-quarter' as const,
+                              label: 'Day 22 · Last Qtr',
+                              heLabel: 'רבע אחרון',
+                              illuminationPct: 50,
+                              ageFraction: 0.75,
+                              shortLabel: 'Last Qtr',
+                              isKeyPhase: true,
+                            },
+                          ].map((phase) => (
+                            <div
+                              key={phase.kind}
+                              className="flex items-center gap-1 rounded-md border border-border/70 bg-background/80 px-1.5 py-1 text-muted-foreground"
+                            >
+                              <MoonPhaseDisc phase={phase} className="size-3 shrink-0 text-primary" />
+                              <span className="truncate font-medium">{phase.shortLabel}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-border bg-muted/25 p-3">
                       {(
                         [
@@ -1380,6 +1559,7 @@ export function StudioView({
                           ['rambam', 'Rambam'],
                           ['fastDetails', 'Fast details'],
                           ['dualZmanim', 'Dual Shema (MGA/GRA)'],
+                          ['moonPhase', 'Lunar cycle / Moon phase'],
                         ] as [keyof JewishInfoOptions, string][]
                       ).map(([key, label]) => (
                         <label
@@ -1742,6 +1922,26 @@ export function StudioView({
                     </button>
                   </div>
 
+                  {/* Quick Lunar Cycle / Moon Phase Display Toggle */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setJewishOptions((prev) => ({
+                        ...prev,
+                        moonPhase: !(prev.moonPhase ?? true),
+                      }))
+                    }
+                    title="Toggle Lunar Cycle / Moon Phase indicator in daily cells"
+                    className={`inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                      jewishOptions.moonPhase ?? true
+                        ? 'border-primary/35 bg-primary/10 text-primary'
+                        : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Moon className="size-3.5" />
+                    <span>Moon Phases</span>
+                  </button>
+
                   {previewMode === 'pages' && (
                     <>
                       <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5 text-xs">
@@ -1808,23 +2008,28 @@ export function StudioView({
                     </>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={handleExportPdf}
-                    disabled={exportingPdf}
-                    className="inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 whitespace-nowrap shrink-0"
-                  >
-                    {exportingPdf ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Download className="size-3.5" />
-                    )}
-                    <span>
-                      {exportingPdf && pdfProgress
-                        ? `PDF (${pdfProgress.current}/${pdfProgress.total})`
-                        : t('dash.export.pdf')}
-                    </span>
-                  </button>
+                  <ExportMenu
+                    orgName={orgName}
+                    locationName={location.name}
+                    year={year}
+                    cycle={cycle}
+                    themeName={activeTheme.name}
+                    paperSize={paperSize}
+                    orientation={orientation}
+                    monthsPerPage={effectiveMpp}
+                    showCropMarks={showCropMarks}
+                    yahrzeitsCount={personalHebrewEvents.length}
+                    exportingPdf={exportingPdf}
+                    pdfProgress={pdfProgress}
+                    pdfResolution={pdfResolution}
+                    onChangePdfResolution={setPdfResolution}
+                    onExportPdf={(res) => handleExportPdf(res)}
+                    onExportCsv={handleExportCsv}
+                    onExportIcs={handleExportIcs}
+                    onPrint={handlePrint}
+                    onExportOfflineHtml={handleExportOfflineHtml}
+                    align="right"
+                  />
 
                   <button
                     type="button"
@@ -1921,6 +2126,7 @@ export function StudioView({
               calendar={calendar}
               settings={settings}
               personalHebrewEvents={personalHebrewEvents}
+              customEvents={customEvents}
               specialEvents={specialEvents}
               onExportIcs={handleExportIcs}
             />
@@ -1998,6 +2204,7 @@ export function StudioView({
                     dayPhotos={dayPhotos}
                     specialEvents={specialEvents}
                     personalHebrewEvents={personalHebrewEvents}
+                    customEvents={customEvents}
                     startMonthIndex={startMonthIndex}
                     interMonthPages={interMonthPages}
                     onInterMonthPageChange={(mIdx, nextCfg) =>
@@ -2081,6 +2288,7 @@ export function StudioView({
                                   dayPhotos={dayPhotos}
                                   specialEvents={specialEvents}
                                   personalHebrewEvents={personalHebrewEvents}
+                                  customEvents={customEvents}
                                   monthIndex={mIdx}
                                   sponsors={sponsors}
                                   sponsorsEnabled={sponsorsEnabled}
@@ -2189,6 +2397,11 @@ export function StudioView({
         }
         events={selectedDay ? specialEvents[formatDateKey(selectedDay.date)] : undefined}
         personalHebrewEvents={personalHebrewEvents}
+        customEvents={customEvents}
+        onRemoveCustomEvent={(id) => {
+          setCustomEvents((prev) => prev.filter((item) => item.id !== id));
+          notify('Removed custom event rule');
+        }}
         onAddEvent={
           selectedDay
             ? (txt) => {

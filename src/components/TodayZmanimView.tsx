@@ -15,6 +15,7 @@ import {
 import {
   CalendarDay,
   CalendarSettings,
+  CustomCalendarEvent,
   GeneratedCalendar,
   PersonalHebrewEvent,
   WEEKDAY_NAMES,
@@ -28,12 +29,14 @@ export function TodayZmanimView({
   settings,
   specialEvents,
   personalHebrewEvents,
+  customEvents = [],
   onExportIcs,
 }: {
   calendar: GeneratedCalendar;
   settings: CalendarSettings;
   specialEvents: Record<string, string[]>;
   personalHebrewEvents: PersonalHebrewEvent[];
+  customEvents?: CustomCalendarEvent[];
   onExportIcs: () => void;
 }) {
   const allDays = useMemo(
@@ -96,7 +99,12 @@ export function TodayZmanimView({
 
   if (!activeDay) return null;
 
-  const dayEvents = getEventsForDay(activeDay, specialEvents, personalHebrewEvents);
+  const dayEvents = getEventsForDay(
+    activeDay,
+    specialEvents,
+    personalHebrewEvents,
+    customEvents
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-16">
