@@ -1,0 +1,6 @@
+{
+  "name": "Luach — Jewish Year Calendar & Zmanim Studio",
+  "description": "Generate, customize, and export print-ready Jewish and Chabad yearly calendars with 13 daily halachic zmanim, Hebrew dates, parsha, yahrzeit tracking, and PDF/CSV/ICS export.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

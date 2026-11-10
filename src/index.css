@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--custom-font-display, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-chabad: var(--chabad);
+  --color-candle: var(--candle);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: #fafbfd;
+  --card: #ffffff;
+  --foreground: #1c2130;
+  --muted: #f1f3f8;
+  --muted-foreground: #5c667d;
+  --border: #e4e8f0;
+  --primary: #315ecb;
+  --primary-foreground: #f8faff;
+  --accent: #eef1f8;
+  --accent-foreground: #262c3e;
+  --secondary: #f3f5fa;
+  --secondary-foreground: #2e3548;
+  --chabad: #8f6211;
+  --candle: #b05a17;
+  --ring: #5a7df0;
+  --custom-font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.dark {
+  --background: #0e1420;
+  --card: #151d2d;
+  --foreground: #e7ecf6;
+  --muted: #1b2434;
+  --muted-foreground: #8b96ad;
+  --border: #28344a;
+  --primary: #7ea2f2;
+  --primary-foreground: #0d1530;
+  --accent: #1f2a3e;
+  --accent-foreground: #e7ecf6;
+  --secondary: #222d42;
+  --secondary-foreground: #dbe2f0;
+  --chabad: #e0b35a;
+  --candle: #f0a35e;
+  --ring: #7ea2f2;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.calendar-print {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0.4in;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print-month {
+    break-after: page;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-month:last-child {
+    break-after: auto;
+  }
+  .inter-month-page {
+    break-before: page;
+    page-break-before: always;
+    min-height: 9in;
+  }
+  .print-area {
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    background: var(--card) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+}
