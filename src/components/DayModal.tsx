@@ -1,5 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Flame, ImagePlus, Sparkles, X, BookOpen, Clock } from 'lucide-react';
+import {
+  Flame,
+  ImagePlus,
+  Sparkles,
+  X,
+  BookOpen,
+  Clock,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
 import {
   CalendarDay,
   CalendarLocation,
@@ -8,8 +18,10 @@ import {
   PersonalHebrewEvent,
   ZMANIM_LIST,
   doesHebrewEventMatchDay,
+  formatDateKey,
   formatZmanTime,
   getCustomEventsForDay,
+  getStructuredEventsForDay,
 } from '../lib/calendarEngine';
 import { CalendarTheme, getThemeStyleVars } from '../lib/themes';
 import { MoonPhaseDisc } from './CalendarGrid';
@@ -57,6 +69,8 @@ export function DayModal({
   events,
   personalHebrewEvents = [],
   customEvents = [],
+  dayEventOrder,
+  onReorderDayEvents,
   onAddEvent,
   onRemoveEvent,
   onRemoveCustomEvent,
@@ -71,6 +85,13 @@ export function DayModal({
   events?: string[];
   personalHebrewEvents?: PersonalHebrewEvent[];
   customEvents?: CustomCalendarEvent[];
+  dayEventOrder?: Record<string, string[]>;
+  onReorderDayEvents?: (
+    day: CalendarDay,
+    orderedIds: string[],
+    draggedCustomId?: string,
+    targetCustomId?: string
+  ) => void;
   onAddEvent?: (text: string) => void;
   onRemoveEvent?: (idx: number) => void;
   onRemoveCustomEvent?: (id: string) => void;
@@ -78,10 +99,13 @@ export function DayModal({
 }) {
   const { t } = useTranslation();
   const [newEventText, setNewEventText] = useState('');
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!day) return null;
 
+  const dateKey = formatDateKey(day.date);
   const fullGregDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
@@ -93,6 +117,35 @@ export function DayModal({
     doesHebrewEventMatchDay(ev, day)
   );
   const matchingCustomEvents = getCustomEventsForDay(day, customEvents);
+  const prioritizedDayItems = getStructuredEventsForDay(
+    day,
+    events ? { [dateKey]: events } : {},
+    personalHebrewEvents,
+    customEvents,
+    dayEventOrder
+  );
+
+  const handleModalReorder = (fromIndex: number, toIndex: number) => {
+    if (!onReorderDayEvents || fromIndex === toIndex) return;
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= prioritizedDayItems.length ||
+      toIndex >= prioritizedDayItems.length
+    ) {
+      return;
+    }
+    const next = [...prioritizedDayItems];
+    const [moved] = next.splice(fromIndex, 1);
+    const target = prioritizedDayItems[toIndex];
+    next.splice(toIndex, 0, moved);
+    onReorderDayEvents(
+      day,
+      next.map((item) => item.id),
+      moved.customEventId,
+      target?.customEventId
+    );
+  };
 
   const handlePhotoUpload = (file?: File) => {
     if (!file || !file.type.startsWith('image/') || file.size > 5_000_000 || !onPhotoChange) return;
@@ -306,7 +359,89 @@ export function DayModal({
 
           {/* Special Events & Recurring Yahrzeits */}
           <div className="flex flex-col gap-2.5 rounded-xl border border-border p-3.5">
-            <p className="text-xs font-semibold text-foreground">{t('cal.specialEvents')}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground">{t('cal.specialEvents')}</p>
+              {prioritizedDayItems.length > 1 && onReorderDayEvents && (
+                <span className="text-[10.5px] font-medium text-primary">
+                  Drag to prioritize cell order
+                </span>
+              )}
+            </div>
+
+            {prioritizedDayItems.length > 1 && onReorderDayEvents && (
+              <div className="flex flex-col gap-1.5 rounded-xl border border-primary/20 bg-muted/25 p-2.5">
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  Cell Display Priority (Top item appears as #1 featured event in day cell):
+                </p>
+                {prioritizedDayItems.map((item, idx) => {
+                  const isDragging = draggedIdx === idx;
+                  const isDragOver = dragOverIdx === idx && draggedIdx !== idx;
+                  return (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => setDraggedIdx(idx)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (dragOverIdx !== idx) setDragOverIdx(idx);
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverIdx === idx) setDragOverIdx(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedIdx !== null && draggedIdx !== idx) {
+                          handleModalReorder(draggedIdx, idx);
+                        }
+                        setDraggedIdx(null);
+                        setDragOverIdx(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedIdx(null);
+                        setDragOverIdx(null);
+                      }}
+                      className={`flex cursor-grab items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-all active:cursor-grabbing ${
+                        idx === 0
+                          ? 'border-candle/35 bg-candle/10 font-semibold text-candle'
+                          : 'border-border bg-card text-foreground'
+                      } ${isDragOver ? 'ring-2 ring-primary bg-primary/10' : ''} ${
+                        isDragging ? 'opacity-40' : ''
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <GripVertical className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="font-mono text-[10px] font-bold text-primary tabular-nums">
+                          #{idx + 1}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {idx > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleModalReorder(idx, idx - 1)}
+                            title="Move up"
+                            className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          >
+                            <ArrowUp className="size-3" />
+                          </button>
+                        )}
+                        {idx < prioritizedDayItems.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleModalReorder(idx, idx + 1)}
+                            title="Move down"
+                            className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          >
+                            <ArrowDown className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {matchingHebrewEvents.length > 0 && (
               <div className="flex flex-col gap-1.5 text-xs text-chabad">

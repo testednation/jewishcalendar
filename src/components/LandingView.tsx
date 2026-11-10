@@ -8,14 +8,6 @@ import {
   Eye,
   FileSpreadsheet,
   Sun,
-  CalendarRange,
-  HeartHandshake,
-  FileText,
-  Scale,
-  Megaphone,
-  Rss,
-  Scissors,
-  Smartphone,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -36,10 +28,8 @@ import { useTranslation } from '../i18n/translations';
 
 export function LandingView({
   onOpenStudio,
-  onOpenSuggestions,
 }: {
   onOpenStudio: () => void;
-  onOpenSuggestions: () => void;
 }) {
   const { t } = useTranslation();
   const [selectedSampleDay, setSelectedSampleDay] = useState<CalendarDay | null>(null);
@@ -164,13 +154,6 @@ export function LandingView({
             >
               {t('nav.sample')}
             </a>
-            <button
-              type="button"
-              onClick={onOpenSuggestions}
-              className="cursor-pointer transition-colors hover:text-foreground hover:underline underline-offset-4 whitespace-nowrap shrink-0"
-            >
-              {t('nav.suggestions')}
-            </button>
           </nav>
 
           {/* Zone 3: 1 primary action */}
@@ -234,14 +217,6 @@ export function LandingView({
                 >
                   <span>{t('hero.start')}</span>
                   <ArrowRight className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenSuggestions}
-                  className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent whitespace-nowrap shrink-0"
-                >
-                  <Sparkles className="size-4 text-primary" />
-                  <span>{t('cta.exploreFeatures')}</span>
                 </button>
               </div>
 
@@ -363,118 +338,6 @@ export function LandingView({
                 </div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Suggested Enhancements Spotlight Section */}
-      <section className="border-t border-border bg-background">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold text-chabad">
-                Built-In Power Features Beyond the Original
-              </p>
-              <h2
-                style={{ textWrap: 'balance' }}
-                className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-4xl"
-              >
-                All 8 Community, Print &amp; Mobile Enhancements Ready in Studio
-              </h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                We cloned every feature of Luach and engineered complete synagogue fundraising, halachic, commercial print, and mobile-first tools directly into the workspace.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenSuggestions}
-              className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground whitespace-nowrap shrink-0"
-            >
-              <Sparkles className="size-3.5" />
-              <span>Launch Interactive Feature Tools</span>
-            </button>
-          </div>
-
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <CalendarRange className="size-5 text-primary" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                01. Tishrei–Elul Jewish Year Cycle
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Generate calendars starting in September (Rosh Hashanah / Tishrei) through August (Elul), or standard January–December.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <HeartHandshake className="size-5 text-chabad" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                02. Hebrew Date Yahrzeit Tracker
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Convert any Gregorian passing or birth date to Hebrew and automatically highlight it on the exact Hebrew date every year.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <Scale className="size-5 text-primary" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                03. Dual Shema &amp; Rabbeinu Tam
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Display both Magen Avraham and Baal HaTanya / GRA Sof Zman Krias Shema in each cell, plus 72-minute Rabbeinu Tam.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <FileText className="size-5 text-candle" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                04. Shabbat Shul Bulletin Card
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                One-click generator for any Shabbat weekend with candle lighting, Plag, Shacharit Shema cutoffs, Pirkei Avot, and Havdalah.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <Megaphone className="size-5 text-chabad" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                05. Donor Sponsor &amp; Ad-Box Grid
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Sell empty calendar grid cells ($180) and monthly footer banners ($360) to local businesses with live fundraising revenue tracking.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <Rss className="size-5 text-primary" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                06. Live Webcal Feed &amp; Halachic Clock
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Real-time countdown to the next halachic Zman, 7-day horizontal scroller, and dynamic <code>webcal://</code> calendar subscription.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <Scissors className="size-5 text-candle" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                07. Commercial Print Crop Marks
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Toggle 0.125-inch bleed guides, corner trim ticks, and registration crosshairs for 28-page saddle-stitched print shops.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <Smartphone className="size-5 text-primary" />
-              <h3 className="mt-3 font-display text-base font-semibold">
-                08. Mobile-First Touch &amp; Agenda UX
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                Switch any month between a 7-column grid and a touch-friendly Agenda list, with a 4-tab mobile bottom bar and bottom-sheet modals.
-              </p>
-            </div>
           </div>
         </div>
       </section>

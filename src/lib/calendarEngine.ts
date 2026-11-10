@@ -1173,15 +1173,26 @@ export function formatCustomEventDisplay(ev: CustomCalendarEvent): string {
   return `${ev.title}${timeSuffix}`;
 }
 
-export function getEventsForDay(
+export interface DayEventItem {
+  id: string;
+  kind: 'custom' | 'special' | 'hebrew';
+  label: string;
+  customEventId?: string;
+  specialIndex?: number;
+  category?: string;
+  isOneTimeCustom?: boolean;
+}
+
+export function getStructuredEventsForDay(
   day: CalendarDay,
   specialEvents: Record<string, string[]>,
   personalHebrewEvents: PersonalHebrewEvent[] = [],
-  customEvents: CustomCalendarEvent[] = []
-): string[] {
+  customEvents: CustomCalendarEvent[] = [],
+  dayEventOrder?: Record<string, string[]>
+): DayEventItem[] {
   const key = formatDateKey(day.date);
-  const direct = specialEvents[key] ?? [];
-  const recurringHebrew = personalHebrewEvents
+
+  const recurringHebrew: DayEventItem[] = personalHebrewEvents
     .filter((ev) => doesHebrewEventMatchDay(ev, day))
     .map((ev) => {
       const prefix =
@@ -1192,12 +1203,65 @@ export function getEventsForDay(
           : ev.category === 'anniversary'
           ? '💍 Anniversary:'
           : '📌';
-      return `${prefix} ${ev.title}`;
+      return {
+        id: `hebrew:${ev.id}`,
+        kind: 'hebrew',
+        label: `${prefix} ${ev.title}`,
+        category: ev.category,
+      };
     });
-  const matchedCustom = customEvents
+
+  const matchedCustom: DayEventItem[] = customEvents
     .filter((ev) => doesCustomEventMatchDay(ev, day))
-    .map((ev) => formatCustomEventDisplay(ev));
-  return [...recurringHebrew, ...matchedCustom, ...direct];
+    .map((ev) => ({
+      id: `custom:${ev.id}`,
+      kind: 'custom',
+      label: formatCustomEventDisplay(ev),
+      customEventId: ev.id,
+      category: ev.category,
+      isOneTimeCustom: ev.recurrence === 'one-time',
+    }));
+
+  const direct: DayEventItem[] = (specialEvents[key] ?? []).map((text, idx) => ({
+    id: `special:${text}`,
+    kind: 'special',
+    label: text,
+    specialIndex: idx,
+  }));
+
+  const combined: DayEventItem[] = [...matchedCustom, ...recurringHebrew, ...direct];
+  const explicitOrder = dayEventOrder?.[key];
+  if (!explicitOrder || explicitOrder.length === 0 || combined.length <= 1) {
+    return combined;
+  }
+
+  const orderMap = new Map<string, number>();
+  explicitOrder.forEach((id, idx) => {
+    orderMap.set(id, idx);
+  });
+
+  return [...combined].sort((a, b) => {
+    const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : Number.MAX_SAFE_INTEGER;
+    const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : Number.MAX_SAFE_INTEGER;
+    if (idxA !== idxB) return idxA - idxB;
+    return 0;
+  });
+}
+
+export function getEventsForDay(
+  day: CalendarDay,
+  specialEvents: Record<string, string[]>,
+  personalHebrewEvents: PersonalHebrewEvent[] = [],
+  customEvents: CustomCalendarEvent[] = [],
+  dayEventOrder?: Record<string, string[]>
+): string[] {
+  return getStructuredEventsForDay(
+    day,
+    specialEvents,
+    personalHebrewEvents,
+    customEvents,
+    dayEventOrder
+  ).map((item) => item.label);
 }
 
 // Geocoding & Timezone Utilities

@@ -11,6 +11,8 @@ import {
   List,
   Award,
   ChevronRight,
+  GripVertical,
+  ArrowUp,
 } from 'lucide-react';
 import {
   CalendarDay,
@@ -18,6 +20,7 @@ import {
   CalendarMonth,
   CalendarSettings,
   CustomCalendarEvent,
+  DayEventItem,
   GeneratedCalendar,
   HEBREW_WEEKDAY_LETTERS,
   JewishInfoOptions,
@@ -28,6 +31,7 @@ import {
   formatMoladAnnouncement,
   formatZmanTime,
   getEventsForDay,
+  getStructuredEventsForDay,
   getYahrzeitsForDay,
 } from '../lib/calendarEngine';
 import { CommunitySponsor } from './SponsorGridManager';
@@ -371,6 +375,9 @@ export function DayCell({
   jewishOptions,
   photo,
   events,
+  eventItems = [],
+  onReorderDayEvents,
+  onMoveCustomEventToDate,
   hasYahrzeit = false,
 }: {
   day: CalendarDay;
@@ -380,8 +387,21 @@ export function DayCell({
   jewishOptions?: JewishInfoOptions;
   photo?: string;
   events?: string[];
+  eventItems?: DayEventItem[];
+  onReorderDayEvents?: (
+    day: CalendarDay,
+    orderedIds: string[],
+    draggedCustomId?: string,
+    targetCustomId?: string
+  ) => void;
+  onMoveCustomEventToDate?: (customEventId: string, targetDateKey: string) => void;
   hasYahrzeit?: boolean;
 }) {
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [cellDropActive, setCellDropActive] = useState<boolean>(false);
+
+  const dateKey = formatDateKey(day.date);
   const isYomTov = day.holidays.some((h) => h.isYomTov);
   const isChabad = day.holidays.some((h) => h.isChabad);
   const holidayLine = day.holidays
@@ -406,15 +426,85 @@ export function DayCell({
   const sunriseStr = formatZmanTime(day.zmanim.sunrise, location.tzid, settings.hour12, true);
   const sunsetStr = formatZmanTime(day.zmanim.sunset, location.tzid, settings.hour12, true);
 
+  const resolvedItems: DayEventItem[] =
+    eventItems.length > 0
+      ? eventItems
+      : (events ?? []).map((label, idx) => ({
+          id: `legacy:${idx}:${label}`,
+          kind: 'custom',
+          label,
+        }));
+
+  const canReorderInCell = Boolean(onReorderDayEvents && resolvedItems.length > 1);
+
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    if (!onReorderDayEvents || fromIndex === toIndex) return;
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= resolvedItems.length || toIndex >= resolvedItems.length) {
+      return;
+    }
+    const next = [...resolvedItems];
+    const [moved] = next.splice(fromIndex, 1);
+    const target = resolvedItems[toIndex];
+    next.splice(toIndex, 0, moved);
+    onReorderDayEvents(
+      day,
+      next.map((item) => item.id),
+      moved.customEventId,
+      target?.customEventId
+    );
+  };
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelectDay?.(day)}
-      className={`group relative flex min-h-[74px] cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-[100px] sm:p-2 ${
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelectDay?.(day);
+        }
+      }}
+      onDragOver={(e) => {
+        if (!onMoveCustomEventToDate) return;
+        if (e.dataTransfer.types.includes('application/x-luach-event')) {
+          e.preventDefault();
+          setCellDropActive(true);
+        }
+      }}
+      onDragLeave={() => setCellDropActive(false)}
+      onDrop={(e) => {
+        setCellDropActive(false);
+        const raw = e.dataTransfer.getData('application/x-luach-event');
+        if (!raw) return;
+        try {
+          const payload = JSON.parse(raw) as {
+            eventId: string;
+            sourceDateKey: string;
+            customEventId?: string;
+            isOneTimeCustom?: boolean;
+          };
+          if (
+            payload.sourceDateKey !== dateKey &&
+            payload.customEventId &&
+            payload.isOneTimeCustom &&
+            onMoveCustomEventToDate
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            onMoveCustomEventToDate(payload.customEventId, dateKey);
+          }
+        } catch {
+          // ignore invalid drag payload
+        }
+      }}
+      className={`group relative flex min-h-[74px] cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-[104px] sm:p-2 ${
         day.isSaturday ? 'bg-muted/45' : ''
       } ${isYomTov ? 'bg-primary/[0.05]' : ''} ${
         hasYahrzeit ? 'bg-candle/[0.06] ring-1 ring-inset ring-candle/40' : ''
-      } ${day.isToday ? 'ring-2 ring-inset ring-primary/60' : ''}`}
+      } ${day.isToday ? 'ring-2 ring-inset ring-primary/60' : ''} ${
+        cellDropActive ? 'ring-2 ring-inset ring-primary bg-primary/10' : ''
+      }`}
     >
       {photo && (
         <>
@@ -491,13 +581,141 @@ export function DayCell({
         </span>
       )}
 
-      {(events?.length ?? 0) > 0 && (
-        <span className="relative block truncate text-[8.5px] font-semibold leading-tight text-candle sm:text-[9.5px]">
-          {events![0]}
-          {events!.length > 1 && (
-            <span className="font-medium text-muted-foreground"> +{events!.length - 1}</span>
+      {resolvedItems.length > 0 && (
+        <div
+          className="relative z-10 mt-0.5 flex flex-col gap-0.5"
+          onClick={(e) => {
+            if (canReorderInCell) {
+              e.stopPropagation();
+            }
+          }}
+        >
+          {resolvedItems.slice(0, 3).map((item, idx) => {
+            const isTopPriority = idx === 0;
+            const isDraggingThis = draggedId === item.id;
+            const isDragTarget = dragOverId === item.id && draggedId !== item.id;
+
+            return (
+              <div
+                key={item.id}
+                draggable={canReorderInCell || Boolean(item.isOneTimeCustom && onMoveCustomEventToDate)}
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  setDraggedId(item.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData(
+                    'application/x-luach-event',
+                    JSON.stringify({
+                      eventId: item.id,
+                      index: idx,
+                      sourceDateKey: dateKey,
+                      customEventId: item.customEventId,
+                      isOneTimeCustom: item.isOneTimeCustom,
+                    })
+                  );
+                }}
+                onDragOver={(e) => {
+                  if (!canReorderInCell) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverId !== item.id) {
+                    setDragOverId(item.id);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  e.stopPropagation();
+                  if (dragOverId === item.id) {
+                    setDragOverId(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOverId(null);
+                  setDraggedId(null);
+                  const raw = e.dataTransfer.getData('application/x-luach-event');
+                  if (!raw) return;
+                  try {
+                    const payload = JSON.parse(raw) as {
+                      eventId: string;
+                      index: number;
+                      sourceDateKey: string;
+                      customEventId?: string;
+                      isOneTimeCustom?: boolean;
+                    };
+                    if (payload.sourceDateKey === dateKey) {
+                      const fromIdx = resolvedItems.findIndex((x) => x.id === payload.eventId);
+                      if (fromIdx !== -1 && fromIdx !== idx) {
+                        handleReorder(fromIdx, idx);
+                      }
+                    } else if (
+                      payload.customEventId &&
+                      payload.isOneTimeCustom &&
+                      onMoveCustomEventToDate
+                    ) {
+                      onMoveCustomEventToDate(payload.customEventId, dateKey);
+                    }
+                  } catch {
+                    // ignore invalid drag data
+                  }
+                }}
+                onDragEnd={(e) => {
+                  e.stopPropagation();
+                  setDraggedId(null);
+                  setDragOverId(null);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectDay?.(day);
+                }}
+                title={
+                  canReorderInCell
+                    ? `${item.label} — Drag up/down to change display priority in this day cell`
+                    : item.label
+                }
+                className={`group/ev flex items-center justify-between gap-0.5 rounded px-1 py-0.5 text-[8px] leading-tight transition-all sm:text-[9px] ${
+                  isTopPriority
+                    ? 'bg-candle/12 font-semibold text-candle ring-1 ring-inset ring-candle/25'
+                    : 'bg-muted/70 font-medium text-foreground/85'
+                } ${
+                  canReorderInCell
+                    ? 'cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-primary/50'
+                    : ''
+                } ${isDraggingThis ? 'opacity-40' : ''} ${
+                  isDragTarget ? 'ring-2 ring-primary bg-primary/15' : ''
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-0.5">
+                  {canReorderInCell && (
+                    <GripVertical className="size-2.5 shrink-0 text-muted-foreground/70 transition-opacity group-hover/ev:text-primary print:hidden" />
+                  )}
+                  <span className="truncate">{item.label}</span>
+                </span>
+
+                {canReorderInCell && idx > 0 && (
+                  <button
+                    type="button"
+                    aria-label={`Move ${item.label} to top priority`}
+                    title="Promote to #1 top priority"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReorder(idx, 0);
+                    }}
+                    className="hidden shrink-0 cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-primary/15 hover:text-primary group-hover/ev:inline-flex print:hidden"
+                  >
+                    <ArrowUp className="size-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {resolvedItems.length > 3 && (
+            <span className="px-1 text-[8px] font-medium text-muted-foreground">
+              +{resolvedItems.length - 3} more (click to reorder)
+            </span>
           )}
-        </span>
+        </div>
       )}
 
       <div className="relative mt-auto flex flex-col gap-0.5 pt-0.5 sm:pt-1">
@@ -544,7 +762,7 @@ export function DayCell({
           </span>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -565,6 +783,9 @@ export function MonthCard({
   specialEvents,
   personalHebrewEvents,
   customEvents,
+  dayEventOrder,
+  onReorderDayEvents,
+  onMoveCustomEventToDate,
   monthIndex = 0,
   sponsors = [],
   sponsorsEnabled = false,
@@ -586,6 +807,14 @@ export function MonthCard({
   specialEvents?: Record<string, string[]>;
   personalHebrewEvents?: PersonalHebrewEvent[];
   customEvents?: CustomCalendarEvent[];
+  dayEventOrder?: Record<string, string[]>;
+  onReorderDayEvents?: (
+    day: CalendarDay,
+    orderedIds: string[],
+    draggedCustomId?: string,
+    targetCustomId?: string
+  ) => void;
+  onMoveCustomEventToDate?: (customEventId: string, targetDateKey: string) => void;
   monthIndex?: number;
   sponsors?: CommunitySponsor[];
   sponsorsEnabled?: boolean;
@@ -750,7 +979,8 @@ export function MonthCard({
                 day,
                 specialEvents ?? {},
                 personalHebrewEvents ?? [],
-                customEvents ?? []
+                customEvents ?? [],
+                dayEventOrder
               );
               const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
               const isYomTov = day.holidays.some((h) => h.isYomTov);
@@ -873,12 +1103,14 @@ export function MonthCard({
               const cellKey = `${wIdx}-${dIdx}`;
               if (day) {
                 const dateKey = formatDateKey(day.date);
-                const mergedEvents = getEventsForDay(
+                const structuredEvents = getStructuredEventsForDay(
                   day,
                   specialEvents ?? {},
                   personalHebrewEvents ?? [],
-                  customEvents ?? []
+                  customEvents ?? [],
+                  dayEventOrder
                 );
+                const mergedEvents = structuredEvents.map((item) => item.label);
                 const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
                 return (
                   <DayCell
@@ -890,6 +1122,9 @@ export function MonthCard({
                     jewishOptions={jewishOptions}
                     photo={dayPhotos?.[dateKey]}
                     events={mergedEvents}
+                    eventItems={structuredEvents}
+                    onReorderDayEvents={onReorderDayEvents}
+                    onMoveCustomEventToDate={onMoveCustomEventToDate}
                     hasYahrzeit={dayYahrzeits.length > 0}
                   />
                 );
@@ -1174,6 +1409,9 @@ export function FullCalendarView({
   specialEvents,
   personalHebrewEvents,
   customEvents,
+  dayEventOrder,
+  onReorderDayEvents,
+  onMoveCustomEventToDate,
   startMonthIndex = 0,
   interMonthPages,
   onInterMonthPageChange,
@@ -1201,6 +1439,14 @@ export function FullCalendarView({
   specialEvents?: Record<string, string[]>;
   personalHebrewEvents?: PersonalHebrewEvent[];
   customEvents?: CustomCalendarEvent[];
+  dayEventOrder?: Record<string, string[]>;
+  onReorderDayEvents?: (
+    day: CalendarDay,
+    orderedIds: string[],
+    draggedCustomId?: string,
+    targetCustomId?: string
+  ) => void;
+  onMoveCustomEventToDate?: (customEventId: string, targetDateKey: string) => void;
   startMonthIndex?: number;
   interMonthPages?: Record<string, InterMonthPageConfig>;
   onInterMonthPageChange?: (mIdx: number, next: InterMonthPageConfig | null) => void;
@@ -1257,6 +1503,9 @@ export function FullCalendarView({
                 specialEvents={specialEvents}
                 personalHebrewEvents={personalHebrewEvents}
                 customEvents={customEvents}
+                dayEventOrder={dayEventOrder}
+                onReorderDayEvents={onReorderDayEvents}
+                onMoveCustomEventToDate={onMoveCustomEventToDate}
                 monthIndex={actualIdx}
                 sponsors={sponsors}
                 sponsorsEnabled={sponsorsEnabled}

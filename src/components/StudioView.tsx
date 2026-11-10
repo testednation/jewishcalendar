@@ -7,8 +7,6 @@ import {
   Clock,
   Download,
   FileSpreadsheet,
-  FileText,
-  HeartHandshake,
   Image as ImageIcon,
   Layers,
   Loader2,
@@ -79,7 +77,6 @@ import {
   MoonPhaseDisc,
 } from './CalendarGrid';
 import { DayModal } from './DayModal';
-import { SuggestedFeaturesModal } from './SuggestedFeaturesModal';
 import { YahrzeitTracker } from './YahrzeitTracker';
 import {
   CommunitySponsor,
@@ -112,10 +109,8 @@ const AVAILABLE_YEARS = Array.from({ length: 10 }, (_, i) => 2024 + i);
 
 export function StudioView({
   onBackToLanding,
-  initialShowSuggestions = false,
 }: {
   onBackToLanding: () => void;
-  initialShowSuggestions?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -201,8 +196,20 @@ export function StudioView({
       },
     ]
   );
-  const [customEvents, setCustomEvents] = useState<CustomCalendarEvent[]>(
-    savedState?.customEvents ?? DEFAULT_CUSTOM_EVENTS
+  const [customEvents, setCustomEvents] = useState<CustomCalendarEvent[]>(() => {
+    const saved = savedState?.customEvents as CustomCalendarEvent[] | undefined;
+    if (!saved || saved.length === 0) return DEFAULT_CUSTOM_EVENTS;
+    if (
+      saved.length === 2 &&
+      saved.some((e) => e.id === 'default-custom-1') &&
+      !saved.some((e) => e.title === 'Community Maariv & Farbrengen')
+    ) {
+      return DEFAULT_CUSTOM_EVENTS;
+    }
+    return saved;
+  });
+  const [dayEventOrder, setDayEventOrder] = useState<Record<string, string[]>>(
+    savedState?.dayEventOrder ?? {}
   );
 
   // Community Sponsors & Ad-Box Grid state
@@ -276,9 +283,6 @@ export function StudioView({
 
   const [location, setLocation] = useState<CalendarLocation>(defaultLoc);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(true);
-  const [showSuggestionsModal, setShowSuggestionsModal] = useState<boolean>(
-    initialShowSuggestions
-  );
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -323,6 +327,46 @@ export function StudioView({
     }, 3500);
   };
 
+  const handleReorderDayEvents = (
+    day: CalendarDay,
+    orderedIds: string[],
+    draggedCustomId?: string,
+    targetCustomId?: string
+  ) => {
+    const k = formatDateKey(day.date);
+    setDayEventOrder((prev) => ({
+      ...prev,
+      [k]: orderedIds,
+    }));
+
+    if (draggedCustomId && targetCustomId && draggedCustomId !== targetCustomId) {
+      setCustomEvents((prev) => {
+        const fromIdx = prev.findIndex((e) => e.id === draggedCustomId);
+        const toIdx = prev.findIndex((e) => e.id === targetCustomId);
+        if (fromIdx === -1 || toIdx === -1) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        return next;
+      });
+    }
+
+    notify(
+      `Updated event display priority for ${SHORT_MONTH_NAMES[day.gregMonth]} ${day.gregDay}`
+    );
+  };
+
+  const handleMoveCustomEventToDate = (customEventId: string, targetDateKey: string) => {
+    setCustomEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === customEventId && ev.recurrence === 'one-time'
+          ? { ...ev, dateKey: targetDateKey }
+          : ev
+      )
+    );
+    notify(`Moved custom event to ${targetDateKey}`);
+  };
+
   // Persist to localStorage
   useEffect(() => {
     try {
@@ -359,6 +403,7 @@ export function StudioView({
           specialEvents,
           personalHebrewEvents,
           customEvents,
+          dayEventOrder,
           sponsors,
           sponsorsEnabled,
           startFromCurrent,
@@ -400,6 +445,7 @@ export function StudioView({
     specialEvents,
     personalHebrewEvents,
     customEvents,
+    dayEventOrder,
     sponsors,
     sponsorsEnabled,
     startFromCurrent,
@@ -809,15 +855,6 @@ export function StudioView({
             />
             <button
               type="button"
-              onClick={() => setShowSuggestionsModal(true)}
-              className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 whitespace-nowrap shrink-0 sm:px-3"
-            >
-              <Sparkles className="size-3.5" />
-              <span className="hidden sm:inline">Suggested Features &amp; Tools</span>
-              <span className="sm:hidden">Tools</span>
-            </button>
-            <button
-              type="button"
               onClick={onBackToLanding}
               className="inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground whitespace-nowrap shrink-0"
             >
@@ -919,26 +956,6 @@ export function StudioView({
                       <option value="hebrew">Tishrei – Elul (Jewish Year)</option>
                     </select>
                   </div>
-                </div>
-
-                {/* Quick Power Tools Row */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowSuggestionsModal(true)}
-                    className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs font-medium hover:bg-accent whitespace-nowrap shrink-0"
-                  >
-                    <HeartHandshake className="size-3.5 text-chabad" />
-                    <span>Yahrzeits ({personalHebrewEvents.length})</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSuggestionsModal(true)}
-                    className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-2 text-xs font-medium hover:bg-accent whitespace-nowrap shrink-0"
-                  >
-                    <FileText className="size-3.5 text-candle" />
-                    <span>Shabbat Flyer</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1179,6 +1196,10 @@ export function StudioView({
               onRemoveCustomEvent={(id) => {
                 setCustomEvents((prev) => prev.filter((item) => item.id !== id));
                 notify('Removed custom event from calendar');
+              }}
+              onReorderCustomEvents={(next) => {
+                setCustomEvents(next);
+                notify('Updated custom event priority order');
               }}
               onLocateDay={(day, mIdx) => {
                 setPreviewMode('continuous');
@@ -2205,6 +2226,9 @@ export function StudioView({
                     specialEvents={specialEvents}
                     personalHebrewEvents={personalHebrewEvents}
                     customEvents={customEvents}
+                    dayEventOrder={dayEventOrder}
+                    onReorderDayEvents={handleReorderDayEvents}
+                    onMoveCustomEventToDate={handleMoveCustomEventToDate}
                     startMonthIndex={startMonthIndex}
                     interMonthPages={interMonthPages}
                     onInterMonthPageChange={(mIdx, nextCfg) =>
@@ -2289,6 +2313,9 @@ export function StudioView({
                                   specialEvents={specialEvents}
                                   personalHebrewEvents={personalHebrewEvents}
                                   customEvents={customEvents}
+                                  dayEventOrder={dayEventOrder}
+                                  onReorderDayEvents={handleReorderDayEvents}
+                                  onMoveCustomEventToDate={handleMoveCustomEventToDate}
                                   monthIndex={mIdx}
                                   sponsors={sponsors}
                                   sponsorsEnabled={sponsorsEnabled}
@@ -2398,6 +2425,8 @@ export function StudioView({
         events={selectedDay ? specialEvents[formatDateKey(selectedDay.date)] : undefined}
         personalHebrewEvents={personalHebrewEvents}
         customEvents={customEvents}
+        dayEventOrder={dayEventOrder}
+        onReorderDayEvents={handleReorderDayEvents}
         onRemoveCustomEvent={(id) => {
           setCustomEvents((prev) => prev.filter((item) => item.id !== id));
           notify('Removed custom event rule');
@@ -2428,48 +2457,6 @@ export function StudioView({
             : undefined
         }
         onClose={() => setSelectedDay(null)}
-      />
-
-      {/* Suggested Features & Power Tools Modal */}
-      <SuggestedFeaturesModal
-        open={showSuggestionsModal}
-        onClose={() => setShowSuggestionsModal(false)}
-        calendar={calendar}
-        settings={settings}
-        onUpdateSettings={(partial) => {
-          if (partial.cycle !== undefined) setCycle(partial.cycle);
-          if (partial.year !== undefined) setYear(partial.year);
-        }}
-        jewishOptions={jewishOptions}
-        onUpdateJewishOptions={(partial) =>
-          setJewishOptions((prev) => ({ ...prev, ...partial }))
-        }
-        personalHebrewEvents={personalHebrewEvents}
-        onAddPersonalEvent={(ev) =>
-          setPersonalHebrewEvents((prev) => [...prev, ev])
-        }
-        onRemovePersonalEvent={(id) =>
-          setPersonalHebrewEvents((prev) => prev.filter((item) => item.id !== id))
-        }
-        sponsorsCount={sponsors.length}
-        sponsorsEnabled={sponsorsEnabled}
-        onToggleSponsors={() => {
-          setSponsorsEnabled((v) => !v);
-          notify(!sponsorsEnabled ? 'Sponsor ads enabled' : 'Sponsor ads hidden');
-        }}
-        showCropMarks={showCropMarks}
-        onToggleCropMarks={() => {
-          setShowCropMarks((v) => !v);
-          notify(
-            !showCropMarks
-              ? 'Commercial print crop marks enabled'
-              : 'Commercial print crop marks hidden'
-          );
-        }}
-        onOpenTodayTab={() => {
-          setDesktopMainTab('today');
-          setMobileTab('today');
-        }}
       />
     </div>
   );

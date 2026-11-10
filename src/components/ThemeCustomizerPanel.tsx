@@ -389,25 +389,31 @@ export function ThemeCustomizerPanel({
         </div>
       </div>
 
-      {/* Category Filter Tabs: All / Traditional / Minimalist / High-Contrast */}
+      {/* Category Filter Tabs: All / Traditional / Minimalist / High-Contrast / Dark */}
       <div className="mt-4">
-        <span className="block text-xs font-medium text-muted-foreground">
-          1. Select Theme Style Family
-        </span>
-        <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-xl border border-border bg-muted/40 p-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="block text-xs font-medium text-muted-foreground">
+            1. Select Theme Style Family
+          </span>
+          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+            {filteredThemes.length} of {themes.length} themes
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
           {(
             [
               { id: 'all', label: 'All' },
               { id: 'traditional', label: 'Traditional' },
               { id: 'minimalist', label: 'Minimalist' },
               { id: 'high-contrast', label: 'High-Contrast' },
+              { id: 'dark', label: 'Dark' },
             ] as const
           ).map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setSelectedCategory(tab.id)}
-              className={`min-h-[32px] cursor-pointer rounded-lg px-1.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 truncate ${
+              className={`min-h-[30px] flex-1 cursor-pointer rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
                 selectedCategory === tab.id
                   ? 'bg-card text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
@@ -421,7 +427,7 @@ export function ThemeCustomizerPanel({
 
       {/* Theme Presets Grid (Hover for instant Live Preview, Click to apply) */}
       <div
-        className="mt-3 grid grid-cols-2 gap-2"
+        className="mt-3 grid max-h-[340px] grid-cols-2 gap-2 overflow-y-auto pr-0.5"
         onMouseLeave={() => onHoverTheme(null)}
       >
         {filteredThemes.map((th) => {
@@ -474,6 +480,13 @@ export function ThemeCustomizerPanel({
           );
         })}
       </div>
+
+      {previewedTheme.description && (
+        <p className="mt-2 rounded-lg bg-muted/35 px-2.5 py-1.5 text-[11px] leading-snug text-muted-foreground">
+          <span className="font-semibold text-foreground">{previewedTheme.name}:</span>{' '}
+          {previewedTheme.description}
+        </p>
+      )}
 
       {/* Primary Color Palette Swatches */}
       <div className="mt-4 border-t border-border pt-3.5">

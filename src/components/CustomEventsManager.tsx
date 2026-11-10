@@ -3,6 +3,7 @@ import {
   CalendarPlus,
   CalendarRange,
   Clock,
+  GripVertical,
   MapPin,
   Plus,
   Repeat,
@@ -31,6 +32,14 @@ export const DEFAULT_CUSTOM_EVENTS: CustomCalendarEvent[] = [
   },
   {
     id: 'default-custom-2',
+    title: 'Community Maariv & Farbrengen',
+    timeLabel: '9:00 PM',
+    category: 'community',
+    recurrence: 'weekly',
+    weekday: 2, // Tuesday (paired so Tuesdays show 2 draggable events in the daily grid)
+  },
+  {
+    id: 'default-custom-3',
     title: "Rosh Chodesh Women's Circle",
     timeLabel: '7:30 PM',
     category: 'community',
@@ -63,12 +72,14 @@ export function CustomEventsManager({
   customEvents,
   onAddCustomEvent,
   onRemoveCustomEvent,
+  onReorderCustomEvents,
   onLocateDay,
 }: {
   calendar: GeneratedCalendar;
   customEvents: CustomCalendarEvent[];
   onAddCustomEvent: (ev: CustomCalendarEvent) => void;
   onRemoveCustomEvent: (id: string) => void;
+  onReorderCustomEvents?: (next: CustomCalendarEvent[]) => void;
   onLocateDay: (day: CalendarDay, monthIndex: number) => void;
 }) {
   const defaultDateStr = `${calendar.year}-${String(
@@ -86,6 +97,8 @@ export function CustomEventsManager({
   const [gregDay, setGregDay] = useState<number>(1);
   const [hebrewMonth, setHebrewMonth] = useState<number>(7); // Tishrei
   const [hebrewDay, setHebrewDay] = useState<number>(1);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,51 +440,101 @@ export function CustomEventsManager({
         </button>
       </form>
 
-      {/* Active Custom Events List */}
+      {/* Active Custom Events List (Drag-and-Drop Prioritized) */}
       <div className="mt-4 border-t border-border pt-3">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Scheduled Custom Events</span>
-          <span>Click date to view in grid</span>
+          <span>Scheduled Events · Drag to Prioritize</span>
+          <span>Click date to view</span>
         </div>
+        <p className="mt-0.5 text-[11px] text-muted-foreground/85">
+          Drag events directly inside any daily calendar cell (or below) to reorder how they appear.
+        </p>
 
         {customEvents.length === 0 ? (
           <p className="mt-2 rounded-xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
             No custom events yet. Add a one-time date or recurring weekly/monthly schedule above.
           </p>
         ) : (
-          <div className="mt-2 flex max-h-60 flex-col gap-2 overflow-y-auto pr-0.5">
-            {customEvents.map((ev) => {
+          <div className="mt-2 flex max-h-64 flex-col gap-2 overflow-y-auto pr-0.5">
+            {customEvents.map((ev, idx) => {
               const matches = findCustomEventOccurrencesInCalendar(ev, calendar);
               const firstMatch = matches[0];
+              const isDragging = draggedIdx === idx;
+              const isDragOver = dragOverIdx === idx && draggedIdx !== idx;
 
               return (
                 <div
                   key={ev.id}
-                  className="flex items-start justify-between gap-2 rounded-xl border border-border bg-muted/20 p-2.5 text-xs"
+                  draggable={Boolean(onReorderCustomEvents && customEvents.length > 1)}
+                  onDragStart={() => setDraggedIdx(idx)}
+                  onDragOver={(e) => {
+                    if (!onReorderCustomEvents) return;
+                    e.preventDefault();
+                    if (dragOverIdx !== idx) setDragOverIdx(idx);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverIdx === idx) setDragOverIdx(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (
+                      onReorderCustomEvents &&
+                      draggedIdx !== null &&
+                      draggedIdx !== idx
+                    ) {
+                      const next = [...customEvents];
+                      const [moved] = next.splice(draggedIdx, 1);
+                      next.splice(idx, 0, moved);
+                      onReorderCustomEvents(next);
+                    }
+                    setDraggedIdx(null);
+                    setDragOverIdx(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedIdx(null);
+                    setDragOverIdx(null);
+                  }}
+                  className={`flex items-start justify-between gap-2 rounded-xl border p-2.5 text-xs transition-all ${
+                    onReorderCustomEvents && customEvents.length > 1
+                      ? 'cursor-grab active:cursor-grabbing'
+                      : ''
+                  } ${
+                    isDragOver
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                      : 'border-border bg-muted/20 hover:border-primary/35'
+                  } ${isDragging ? 'opacity-45' : ''}`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      {ev.recurrence === 'one-time' ? (
-                        <CalendarRange className="size-3.5 shrink-0 text-primary" />
-                      ) : (
-                        <Repeat className="size-3.5 shrink-0 text-chabad" />
-                      )}
-                      <span className="truncate font-semibold text-foreground">
-                        {ev.title}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      <span>{formatRecurrenceSummary(ev)}</span>
-                      {ev.timeLabel && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono text-candle">{ev.timeLabel}</span>
-                        </>
-                      )}
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums text-primary">
-                        {matches.length} {matches.length === 1 ? 'date' : 'dates'}
-                      </span>
+                  <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                    {onReorderCustomEvents && customEvents.length > 1 && (
+                      <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[10px] font-bold text-primary tabular-nums">
+                          #{idx + 1}
+                        </span>
+                        {ev.recurrence === 'one-time' ? (
+                          <CalendarRange className="size-3.5 shrink-0 text-primary" />
+                        ) : (
+                          <Repeat className="size-3.5 shrink-0 text-chabad" />
+                        )}
+                        <span className="truncate font-semibold text-foreground">
+                          {ev.title}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                        <span>{formatRecurrenceSummary(ev)}</span>
+                        {ev.timeLabel && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-mono text-candle">{ev.timeLabel}</span>
+                          </>
+                        )}
+                        <span aria-hidden="true">·</span>
+                        <span className="font-mono tabular-nums text-primary">
+                          {matches.length} {matches.length === 1 ? 'date' : 'dates'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
