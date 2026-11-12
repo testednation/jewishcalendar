@@ -17,6 +17,7 @@ import {
   MapPin,
   Maximize2,
   Minimize2,
+  Monitor,
   Moon,
   Palette,
   Plus,
@@ -1489,30 +1490,45 @@ export function StudioView({
             <div className="flex items-center gap-2">
               <Download className="size-4 text-primary" />
               <h2 className="font-display text-base font-semibold">
-                {t('dash.export.title')}
+                Print &amp; Download Calendar
               </h2>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{t('dash.export.desc')}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Pick your page direction (Portrait or Landscape) and download a ready-to-print PDF or print directly.
+            </p>
+
+            {/* Beginner-Friendly Desktop Printing Disclaimer */}
+            <div className="mt-3.5 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] p-3 text-xs leading-relaxed text-foreground">
+              <Monitor className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <span className="block font-semibold text-amber-800 dark:text-amber-300">
+                  Friendly Note: Please Print from a Computer
+                </span>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Mobile printing is a bit too complex at the moment because a 12-month Jewish calendar has many small daily times and Hebrew dates. For the easiest experience, please open this site on a <strong>desktop or laptop computer</strong> when you are ready to print!
+                </p>
+              </div>
+            </div>
 
             <div className="mt-4 flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">
-                    Paper size
+                    Paper Size (Printer Paper)
                   </label>
                   <select
                     value={paperSize}
                     onChange={(e) => setPaperSize(e.target.value as 'letter' | 'legal')}
                     className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-background px-2 text-xs font-medium"
                   >
-                    <option value="letter">Letter (8.5 × 11 in)</option>
-                    <option value="legal">Legal (8.5 × 14 in)</option>
+                    <option value="letter">Standard Letter (8.5 × 11 in)</option>
+                    <option value="legal">Long Legal (8.5 × 14 in)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">
-                    Orientation
+                    Page Direction
                   </label>
                   <div className="mt-1 flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
                     <button
@@ -1547,11 +1563,24 @@ export function StudioView({
                 </div>
               </div>
 
+              {/* Beginner-friendly explanation of Portrait vs Landscape */}
+              <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+                {orientation === 'portrait' ? (
+                  <span>
+                    <strong className="text-foreground">Portrait (Tall Page):</strong> Best for binders or booklets. Calendar boxes automatically stretch taller to fit the vertical sheet.
+                  </span>
+                ) : (
+                  <span>
+                    <strong className="text-foreground">Landscape (Wide Wall Calendar):</strong> Best for hanging on a wall or fridge. Calendar boxes automatically stretch wider across the page.
+                  </span>
+                )}
+              </div>
+
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <span className="block text-xs font-medium">Months per page</span>
+                  <span className="block text-xs font-medium">Months on Each Page</span>
                   <span className="text-[11px] text-muted-foreground">
-                    Fit 1 or 4 months on each page
+                    1 big month per page (easiest to read) or 4 smaller months
                   </span>
                 </div>
                 <select
@@ -1564,17 +1593,26 @@ export function StudioView({
                 </select>
               </div>
 
-              <label className="flex min-h-[38px] cursor-pointer items-center justify-between gap-3 text-xs">
+              <label className="flex min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[0.05] px-3 py-2 text-xs">
                 <div>
-                  <span className="block font-medium">Stretch to fill page</span>
+                  <span className="block font-semibold text-foreground">
+                    Auto-stretch calendar to fit Portrait &amp; Landscape
+                  </span>
                   <span className="text-[11px] text-muted-foreground">
-                    Use all available page space
+                    Automatically stretches the grid so it neatly fills the whole page
                   </span>
                 </div>
                 <input
                   type="checkbox"
                   checked={fitToPage}
-                  onChange={(e) => setFitToPage(e.target.checked)}
+                  onChange={(e) => {
+                    setFitToPage(e.target.checked);
+                    notify(
+                      e.target.checked
+                        ? `Auto-stretch enabled: Calendar stretched to fit ${orientation} page`
+                        : 'Auto-stretch turned off'
+                    );
+                  }}
                   className="size-4 accent-primary"
                 />
               </label>
@@ -1583,7 +1621,7 @@ export function StudioView({
                 <div>
                   <span className="block font-medium">Start from current month</span>
                   <span className="text-[11px] text-muted-foreground">
-                    Show only remaining months of the year
+                    Skip past months and only print from this month onward
                   </span>
                 </div>
                 <input
@@ -1595,15 +1633,15 @@ export function StudioView({
               </label>
 
               {/* Commercial Print-Shop Crop Marks & Bleed Toggle */}
-              <label className="flex min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs">
+              <label className="flex min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs">
                 <div className="flex items-start gap-2">
                   <Scissors className="mt-0.5 size-3.5 shrink-0 text-primary" />
                   <div>
-                    <span className="block font-semibold text-foreground">
-                      Commercial Print Crop Marks &amp; Bleed
+                    <span className="block font-medium text-foreground">
+                      Print-Shop Cutting Guides (Optional)
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      0.125&quot; trim guides &amp; registration marks
+                      Only check this if a professional print shop asked for trim lines
                     </span>
                   </div>
                 </div>
@@ -2152,6 +2190,17 @@ export function StudioView({
             mobileTab === 'calendar' || mobileTab === 'today' ? 'block' : 'hidden lg:block'
           }`}
         >
+          {/* Mobile-Friendly Desktop Printing Banner (visible on mobile/tablet screens) */}
+          <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-2.5 text-xs lg:hidden print:hidden">
+            <Monitor className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="leading-relaxed text-foreground">
+              <strong className="font-semibold text-amber-800 dark:text-amber-300">
+                Friendly Tip for Printing:
+              </strong>{' '}
+              You can customize your calendar here on your phone, but when you&apos;re ready to print or save a PDF, please open this page on a <strong>desktop or laptop computer</strong> (mobile printing is a bit too complex right now).
+            </p>
+          </div>
+
           {/* Preview Toolbar */}
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-xs print:hidden sm:mb-6">
             <div>
@@ -2274,6 +2323,30 @@ export function StudioView({
                       <span>Landscape</span>
                     </button>
                   </div>
+
+                  {/* 1-Click Auto-Stretch to Fit Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !fitToPage;
+                      setFitToPage(next);
+                      notify(
+                        next
+                          ? `Auto-stretch enabled: Calendar stretched to fit ${orientation} layout`
+                          : 'Auto-stretch turned off'
+                      );
+                    }}
+                    title="Automatically stretches the calendar grid to fill Portrait or Landscape pages"
+                    aria-pressed={fitToPage}
+                    className={`inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                      fitToPage
+                        ? 'border-primary/35 bg-primary/10 text-primary font-semibold'
+                        : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Maximize2 className="size-3.5" />
+                    <span>Auto-Stretch: {fitToPage ? 'On' : 'Off'}</span>
+                  </button>
 
                   {/* Quick Yahrzeit Side-Panel Drawer Button */}
                   <button
@@ -2571,6 +2644,7 @@ export function StudioView({
                     jewishOptions={jewishOptions}
                     monthsPerPage={effectiveMpp}
                     orientation={orientation}
+                    fitToPage={fitToPage}
                     photoCalendar={photoCalendar}
                     customPhoto={customPhoto}
                     monthPhotos={monthPhotos}
@@ -2630,9 +2704,15 @@ export function StudioView({
                     {pageGroups.map((group, pIdx) => (
                       <div
                         key={pIdx}
-                        className={`print-page-sheet relative mx-auto rounded-2xl border border-border bg-card p-4 shadow-md transition-all sm:p-6 ${
+                        className={`print-page-sheet relative mx-auto flex flex-col rounded-2xl border border-border bg-card p-4 shadow-md transition-all sm:p-6 ${
                           orientation === 'landscape'
-                            ? 'w-full max-w-[1260px]'
+                            ? fitToPage
+                              ? 'w-full max-w-none min-h-[780px] sm:min-h-[880px]'
+                              : 'w-full max-w-[1260px]'
+                            : fitToPage
+                            ? paperSize === 'legal'
+                              ? 'w-full max-w-[900px] min-h-[1120px] sm:min-h-[1280px]'
+                              : 'w-full max-w-[900px] min-h-[960px] sm:min-h-[1100px]'
                             : 'w-full max-w-[850px]'
                         } ${showCropMarks ? 'p-7 sm:p-9' : ''}`}
                       >
@@ -2644,15 +2724,16 @@ export function StudioView({
                           <span className="inline-flex items-center gap-1.5 font-medium">
                             <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
                               {paperSize.toUpperCase()} · {orientation.toUpperCase()}
+                              {fitToPage ? ' · AUTO-STRETCHED' : ''}
                             </span>
                             <span className="text-[11px] tabular-nums text-muted-foreground">
                               {orientation === 'landscape'
                                 ? paperSize === 'letter'
-                                  ? '11 × 8.5 in'
-                                  : '14 × 8.5 in'
+                                  ? '11 × 8.5 in (Wide)'
+                                  : '14 × 8.5 in (Wide)'
                                 : paperSize === 'letter'
-                                ? '8.5 × 11 in'
-                                : '8.5 × 14 in'}
+                                ? '8.5 × 11 in (Tall)'
+                                : '8.5 × 14 in (Tall)'}
                             </span>
                             {showCropMarks && (
                               <span className="text-primary font-semibold">· 0.125&quot; BLEED</span>
@@ -2662,6 +2743,7 @@ export function StudioView({
 
                         {group.kind === 'inter' && group.interIndex !== undefined ? (
                           <InterMonthSeparatorPage
+                            className="flex-1"
                             page={
                               interMonthPages[String(group.interIndex)] ?? {
                                 enabled: true,
@@ -2679,7 +2761,7 @@ export function StudioView({
                             }
                           />
                         ) : (
-                          <div className="flex flex-col gap-6">
+                          <div className="flex flex-1 flex-col justify-between gap-6">
                             {pIdx === 0 && (
                               <CalendarMasthead
                                 calendar={calendar}
@@ -2692,8 +2774,8 @@ export function StudioView({
                             <div
                               className={
                                 effectiveMpp === 4
-                                  ? 'grid grid-cols-1 gap-4 md:grid-cols-2'
-                                  : 'flex flex-col gap-4'
+                                  ? 'grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 auto-rows-fr'
+                                  : 'flex flex-1 flex-col gap-4'
                               }
                             >
                               {group.monthIndexes.map((mIdx) => (
@@ -2715,6 +2797,9 @@ export function StudioView({
                                   monthIndex={mIdx}
                                   sponsors={sponsors}
                                   sponsorsEnabled={sponsorsEnabled}
+                                  orientation={orientation}
+                                  fitToPage={fitToPage}
+                                  monthsPerPage={effectiveMpp}
                                 />
                               ))}
                             </div>

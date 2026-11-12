@@ -124,7 +124,14 @@ body {
     display: none !important;
   }
   .print-grid-view {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+  }
+  .print-days-grid {
     display: grid !important;
+    flex: 1 !important;
+    grid-auto-rows: minmax(72px, 1fr) !important;
   }
   .print-page-sheet {
     break-after: page !important;

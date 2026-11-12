@@ -147,11 +147,13 @@ function BlankCellDecoration({
   photo,
   onPhotoChange,
   sponsorAd,
+  cellHeightClass = 'min-h-[72px] sm:min-h-[100px]',
 }: {
   cellKey: string;
   photo?: BlankCellPhotoConfig;
   onPhotoChange?: (key: string, next: BlankCellPhotoConfig | null) => void;
   sponsorAd?: CommunitySponsor;
+  cellHeightClass?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -187,7 +189,7 @@ function BlankCellDecoration({
 
   if (photo?.src) {
     return (
-      <div className="group relative min-h-[72px] bg-muted/20 sm:min-h-[100px] print:bg-transparent">
+      <div className={`group relative ${cellHeightClass} bg-muted/20 print:bg-transparent`}>
         <img
           src={photo.src}
           alt="Calendar decoration"
@@ -197,7 +199,7 @@ function BlankCellDecoration({
               ? 'h-16 sm:h-20'
               : photo.size === 'medium'
               ? 'h-20 sm:h-28'
-              : 'h-full min-h-[72px] sm:min-h-[100px]'
+              : `h-full ${cellHeightClass}`
           } ${photo.fit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
         {onPhotoChange && (
@@ -247,7 +249,7 @@ function BlankCellDecoration({
 
   if (sponsorAd) {
     return (
-      <div className="group relative flex min-h-[72px] flex-col justify-between bg-muted/25 p-1.5 text-center sm:min-h-[100px] sm:p-2">
+      <div className={`group relative flex ${cellHeightClass} flex-col justify-between bg-muted/25 p-1.5 text-center sm:p-2`}>
         <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-chabad/35 bg-card/75 px-1.5 py-1">
           <span className="text-[8px] font-semibold uppercase tracking-wider text-chabad">
             Community Sponsor
@@ -287,11 +289,11 @@ function BlankCellDecoration({
   }
 
   if (!onPhotoChange) {
-    return <div className="min-h-[72px] bg-muted/15 sm:min-h-[100px]" />;
+    return <div className={`${cellHeightClass} bg-muted/15`} />;
   }
 
   return (
-    <div className="group relative flex min-h-[72px] items-center justify-center bg-muted/15 sm:min-h-[100px]">
+    <div className={`group relative flex ${cellHeightClass} items-center justify-center bg-muted/15`}>
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
@@ -380,6 +382,7 @@ export function DayCell({
   onReorderDayEvents,
   onMoveCustomEventToDate,
   hasYahrzeit = false,
+  cellHeightClass = 'min-h-[74px] sm:min-h-[104px]',
 }: {
   day: CalendarDay;
   location: CalendarLocation;
@@ -397,6 +400,7 @@ export function DayCell({
   ) => void;
   onMoveCustomEventToDate?: (customEventId: string, targetDateKey: string) => void;
   hasYahrzeit?: boolean;
+  cellHeightClass?: string;
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -515,7 +519,7 @@ export function DayCell({
           // ignore invalid drag payload
         }
       }}
-      className={`group relative flex min-h-[74px] cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-[104px] sm:p-2 ${
+      className={`group relative flex ${cellHeightClass} cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-2 ${
         day.isSaturday ? 'bg-muted/45' : ''
       } ${isYomTov ? 'bg-primary/[0.05]' : ''} ${
         effectiveHasYahrzeit ? 'bg-candle/[0.06] ring-1 ring-inset ring-candle/40' : ''
@@ -809,6 +813,9 @@ export function MonthCard({
   sponsors = [],
   sponsorsEnabled = false,
   showCropMarks = false,
+  orientation = 'portrait',
+  fitToPage = true,
+  monthsPerPage = 1,
 }: {
   id?: string;
   month: CalendarMonth;
@@ -838,6 +845,9 @@ export function MonthCard({
   sponsors?: CommunitySponsor[];
   sponsorsEnabled?: boolean;
   showCropMarks?: boolean;
+  orientation?: 'portrait' | 'landscape';
+  fitToPage?: boolean;
+  monthsPerPage?: 1 | 4;
 }) {
   const [mobileLayout, setMobileLayout] = useState<'grid' | 'agenda'>('grid');
 
@@ -875,11 +885,31 @@ export function MonthCard({
     .flat()
     .filter((d): d is CalendarDay => d !== null);
 
+  const cellHeightClass =
+    monthsPerPage === 4
+      ? fitToPage
+        ? 'h-full min-h-[68px] sm:min-h-[84px]'
+        : 'min-h-[64px] sm:min-h-[76px]'
+      : fitToPage
+      ? orientation === 'portrait'
+        ? 'h-full min-h-[86px] sm:min-h-[126px] lg:min-h-[144px]'
+        : 'h-full min-h-[80px] sm:min-h-[108px] lg:min-h-[120px]'
+      : 'min-h-[74px] sm:min-h-[104px]';
+
   return (
-    <section id={id} className="print-month relative scroll-mt-20">
+    <section
+      id={id}
+      className={`print-month relative scroll-mt-20 ${
+        fitToPage ? 'flex h-full flex-1 flex-col' : ''
+      }`}
+    >
       {showCropMarks && <CropMarksOverlay />}
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      <div
+        className={`overflow-hidden rounded-2xl border border-border bg-card shadow-xs ${
+          fitToPage ? 'flex h-full flex-1 flex-col' : ''
+        }`}
+      >
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3.5 sm:items-end sm:px-5 sm:py-4">
           <div>
             <h3 className="font-display text-lg font-semibold tracking-tight text-primary sm:text-xl">
@@ -1103,84 +1133,96 @@ export function MonthCard({
           </div>
         )}
 
-        {/* 7-Column Calendar Grid */}
+        {/* 7-Column Calendar Grid (Auto-Stretches to Fit Portrait & Landscape) */}
         <div
-          className={`print-grid-view grid grid-cols-7 gap-px bg-border ${
-            mobileLayout === 'agenda' ? 'hidden sm:grid print:grid' : ''
-          }`}
+          className={`print-grid-view flex flex-col bg-border ${
+            fitToPage ? 'flex-1' : ''
+          } ${mobileLayout === 'agenda' ? 'hidden sm:flex print:flex' : ''}`}
         >
-          {WEEKDAY_NAMES.map((dayName, idx) => (
-            <div
-              key={dayName}
-              className={`bg-muted/60 py-1.5 text-center text-[10px] font-semibold text-muted-foreground sm:py-2 sm:text-[11px] ${
-                dayName === 'Sat' ? 'bg-muted' : ''
-              }`}
-            >
-              {settings.bilingual ? `${dayName} · ${HEBREW_WEEKDAY_LETTERS[idx]}` : dayName}
-            </div>
-          ))}
+          {/* Weekday Header Row */}
+          <div className="grid grid-cols-7 gap-px border-b border-border bg-border">
+            {WEEKDAY_NAMES.map((dayName, idx) => (
+              <div
+                key={dayName}
+                className={`bg-muted/60 py-1.5 text-center text-[10px] font-semibold text-muted-foreground sm:py-2 sm:text-[11px] ${
+                  dayName === 'Sat' ? 'bg-muted' : ''
+                }`}
+              >
+                {settings.bilingual ? `${dayName} · ${HEBREW_WEEKDAY_LETTERS[idx]}` : dayName}
+              </div>
+            ))}
+          </div>
 
-          {month.weeks.flatMap((week, wIdx) => {
-            const cells = week.map((day, dIdx) => {
-              const cellKey = `${wIdx}-${dIdx}`;
-              if (day) {
-                const dateKey = formatDateKey(day.date);
-                const structuredEvents = getStructuredEventsForDay(
-                  day,
-                  specialEvents ?? {},
-                  personalHebrewEvents ?? [],
-                  customEvents ?? [],
-                  dayEventOrder
-                );
-                const mergedEvents = structuredEvents.map((item) => item.label);
-                const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
+          {/* Week Rows Grid (auto-rows-fr stretches weeks equally to fill Portrait or Landscape page) */}
+          <div
+            className={`print-days-grid grid grid-cols-7 gap-px bg-border ${
+              fitToPage ? 'flex-1 auto-rows-fr' : ''
+            }`}
+          >
+            {month.weeks.flatMap((week, wIdx) => {
+              const cells = week.map((day, dIdx) => {
+                const cellKey = `${wIdx}-${dIdx}`;
+                if (day) {
+                  const dateKey = formatDateKey(day.date);
+                  const structuredEvents = getStructuredEventsForDay(
+                    day,
+                    specialEvents ?? {},
+                    personalHebrewEvents ?? [],
+                    customEvents ?? [],
+                    dayEventOrder
+                  );
+                  const mergedEvents = structuredEvents.map((item) => item.label);
+                  const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
+                  return (
+                    <DayCell
+                      key={cellKey}
+                      day={day}
+                      location={location}
+                      settings={settings}
+                      onSelectDay={onSelectDay}
+                      jewishOptions={jewishOptions}
+                      photo={dayPhotos?.[dateKey]}
+                      events={mergedEvents}
+                      eventItems={structuredEvents}
+                      onReorderDayEvents={onReorderDayEvents}
+                      onMoveCustomEventToDate={onMoveCustomEventToDate}
+                      hasYahrzeit={dayYahrzeits.length > 0}
+                      cellHeightClass={cellHeightClass}
+                    />
+                  );
+                }
+
+                const sponsorForBlank =
+                  cellSponsors.length > 0
+                    ? cellSponsors[(monthIndex + blankCounter++) % cellSponsors.length]
+                    : undefined;
+
                 return (
-                  <DayCell
+                  <BlankCellDecoration
                     key={cellKey}
-                    day={day}
-                    location={location}
-                    settings={settings}
-                    onSelectDay={onSelectDay}
-                    jewishOptions={jewishOptions}
-                    photo={dayPhotos?.[dateKey]}
-                    events={mergedEvents}
-                    eventItems={structuredEvents}
-                    onReorderDayEvents={onReorderDayEvents}
-                    onMoveCustomEventToDate={onMoveCustomEventToDate}
-                    hasYahrzeit={dayYahrzeits.length > 0}
+                    cellKey={cellKey}
+                    photo={blankCellPhotos?.[cellKey]}
+                    onPhotoChange={onBlankCellPhotoChange}
+                    sponsorAd={sponsorForBlank}
+                    cellHeightClass={cellHeightClass}
+                  />
+                );
+              });
+
+              if (onWeekPhotoChange) {
+                const weekKey = `${monthIndex}:${wIdx}`;
+                cells.push(
+                  <WeeklyBannerStrip
+                    key={`week-banner-${weekKey}`}
+                    weekKey={weekKey}
+                    photo={weekPhotos?.[weekKey]}
+                    onPhotoChange={onWeekPhotoChange}
                   />
                 );
               }
-
-              const sponsorForBlank =
-                cellSponsors.length > 0
-                  ? cellSponsors[(monthIndex + blankCounter++) % cellSponsors.length]
-                  : undefined;
-
-              return (
-                <BlankCellDecoration
-                  key={cellKey}
-                  cellKey={cellKey}
-                  photo={blankCellPhotos?.[cellKey]}
-                  onPhotoChange={onBlankCellPhotoChange}
-                  sponsorAd={sponsorForBlank}
-                />
-              );
-            });
-
-            if (onWeekPhotoChange) {
-              const weekKey = `${monthIndex}:${wIdx}`;
-              cells.push(
-                <WeeklyBannerStrip
-                  key={`week-banner-${weekKey}`}
-                  weekKey={weekKey}
-                  photo={weekPhotos?.[weekKey]}
-                  onPhotoChange={onWeekPhotoChange}
-                />
-              );
-            }
-            return cells;
-          })}
+              return cells;
+            })}
+          </div>
         </div>
 
         {/* Monthly Sponsor Footer Banner */}
@@ -1441,6 +1483,7 @@ export function FullCalendarView({
   sponsorsEnabled = false,
   showCropMarks = false,
   orientation = 'portrait',
+  fitToPage = true,
 }: {
   calendar: GeneratedCalendar;
   settings: CalendarSettings;
@@ -1477,15 +1520,21 @@ export function FullCalendarView({
   sponsorsEnabled?: boolean;
   showCropMarks?: boolean;
   orientation?: 'portrait' | 'landscape';
+  fitToPage?: boolean;
 }) {
   return (
     <div
       className={`calendar-print print-area mx-auto w-full transition-all duration-200 ${
-        orientation === 'landscape' ? 'max-w-[1320px]' : 'max-w-[960px]'
+        orientation === 'landscape'
+          ? 'max-w-none'
+          : fitToPage
+          ? 'max-w-[980px]'
+          : 'max-w-[900px]'
       } ${className}`}
       style={style}
       data-months-per-page={monthsPerPage}
       data-orientation={orientation}
+      data-fit-to-page={fitToPage ? 'true' : 'false'}
     >
       <CalendarMasthead
         calendar={calendar}
@@ -1498,7 +1547,7 @@ export function FullCalendarView({
       <div
         className={
           monthsPerPage === 4
-            ? 'grid grid-cols-1 gap-6 xl:grid-cols-2'
+            ? 'grid grid-cols-1 gap-6 xl:grid-cols-2 auto-rows-fr'
             : 'flex flex-col gap-8'
         }
       >
@@ -1537,6 +1586,9 @@ export function FullCalendarView({
                 sponsors={sponsors}
                 sponsorsEnabled={sponsorsEnabled}
                 showCropMarks={showCropMarks}
+                orientation={orientation}
+                fitToPage={fitToPage}
+                monthsPerPage={monthsPerPage}
               />
 
               {actualIdx < calendar.months.length - 1 && interPage?.enabled && (

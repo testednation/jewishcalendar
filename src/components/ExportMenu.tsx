@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  Monitor,
   Printer,
   Scissors,
   Settings,
@@ -154,6 +155,17 @@ export function ExportMenu({
                   <span>{yahrzeitsCount} Yahrzeits</span>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Beginner-Friendly Desktop Printing Disclaimer */}
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3 py-2.5 text-left">
+            <Monitor className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="text-[11px] leading-relaxed text-foreground">
+              <span className="font-semibold text-amber-700 dark:text-amber-300">
+                Friendly Tip — Print on a Computer:
+              </span>{' '}
+              Mobile printing is a bit too complex for full 12-month calendars right now. For the easiest experience and best page fit, please use a <strong>desktop or laptop computer</strong> to print or save your PDF!
             </div>
           </div>
 

@@ -2229,6 +2229,44 @@ export async function exportCalendarToPdf(
       }
     };
 
+    // Exact target stage height matching the chosen Portrait or Landscape paper aspect ratio
+    const stageHeightPx = Math.round(stageWidthPx * (availH / availW));
+
+    const applyAutoStretchStyles = (sheetEl: HTMLElement) => {
+      if (!options.fitToPage) return;
+      sheetEl.style.minHeight = `${stageHeightPx}px`;
+      sheetEl.style.display = 'flex';
+      sheetEl.style.flexDirection = 'column';
+      sheetEl.style.justifyContent = 'space-between';
+
+      const months = Array.from(sheetEl.querySelectorAll('.print-month')) as HTMLElement[];
+      months.forEach((m) => {
+        m.style.display = 'flex';
+        m.style.flexDirection = 'column';
+        m.style.flex = '1';
+        const cardInner = m.querySelector(':scope > div') as HTMLElement | null;
+        if (cardInner) {
+          cardInner.style.display = 'flex';
+          cardInner.style.flexDirection = 'column';
+          cardInner.style.flex = '1';
+        }
+      });
+
+      const gridViews = Array.from(sheetEl.querySelectorAll('.print-grid-view')) as HTMLElement[];
+      gridViews.forEach((gv) => {
+        gv.style.display = 'flex';
+        gv.style.flexDirection = 'column';
+        gv.style.flex = '1';
+      });
+
+      const daysGrids = Array.from(sheetEl.querySelectorAll('.print-days-grid')) as HTMLElement[];
+      daysGrids.forEach((dg) => {
+        dg.style.display = 'grid';
+        dg.style.flex = '1';
+        dg.style.gridAutoRows = 'minmax(72px, 1fr)';
+      });
+    };
+
     // Build discrete page DOM sheets to render one per PDF page
     const pageSheets: { node: HTMLElement; label: string }[] = [];
 
@@ -2243,10 +2281,14 @@ export async function exportCalendarToPdf(
         sheetClone.style.width = '100%';
         sheetClone.style.boxShadow = 'none';
         sheetClone.style.border = 'none';
+        sheetClone.style.flex = '1';
+        sheetClone.style.display = 'flex';
+        sheetClone.style.flexDirection = 'column';
         const wrapper = document.createElement('div');
         wrapper.className = 'print-area';
         wrapper.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box;`;
         wrapper.appendChild(sheetClone);
+        applyAutoStretchStyles(wrapper);
         pageSheets.push({ node: wrapper, label: `Page ${idx + 1}` });
       });
     } else {
@@ -2264,6 +2306,7 @@ export async function exportCalendarToPdf(
         wrapper.className = 'print-area';
         wrapper.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box;`;
         wrapper.appendChild(cloneEl);
+        applyAutoStretchStyles(wrapper);
         pageSheets.push({ node: wrapper, label: 'Page 1' });
       } else {
         const step = options.monthsPerPage === 4 ? 4 : 1;
@@ -2274,7 +2317,7 @@ export async function exportCalendarToPdf(
           if (currentMonthBatch.length === 0) return;
           const sheet = document.createElement('div');
           sheet.className = 'print-area';
-          sheet.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px;`;
+          sheet.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;`;
 
           if (isFirstMonthSheet && mastheadNode) {
             sheet.appendChild(mastheadNode.cloneNode(true));
@@ -2284,7 +2327,7 @@ export async function exportCalendarToPdf(
           if (step === 4) {
             const grid = document.createElement('div');
             grid.style.cssText =
-              'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%;';
+              'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; flex: 1; gap: 16px; width: 100%;';
             currentMonthBatch.forEach((m) => grid.appendChild(m.cloneNode(true)));
             sheet.appendChild(grid);
           } else {
@@ -2294,6 +2337,8 @@ export async function exportCalendarToPdf(
           if (isFinalBatch && legendNode) {
             sheet.appendChild(legendNode.cloneNode(true));
           }
+
+          applyAutoStretchStyles(sheet);
 
           pageSheets.push({
             node: sheet,
@@ -2308,7 +2353,7 @@ export async function exportCalendarToPdf(
             flushMonthBatch(false);
             const interSheet = document.createElement('div');
             interSheet.className = 'print-area';
-            interSheet.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; min-height: 760px;`;
+            interSheet.style.cssText = `width: ${stageWidthPx}px; min-height: ${stageHeightPx}px; background: ${paperBg}; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;`;
             interSheet.appendChild(item.cloneNode(true));
             pageSheets.push({
               node: interSheet,
@@ -2359,7 +2404,11 @@ export async function exportCalendarToPdf(
       let drawW = availW;
       let drawH = drawW * naturalRatio;
 
-      if (drawH > availH) {
+      if (options.fitToPage) {
+        // Auto-stretch to fill the printable Portrait or Landscape page cleanly
+        drawW = availW;
+        drawH = availH;
+      } else if (drawH > availH) {
         // Scale down proportionally so the month/page never clips vertically
         drawH = availH;
         drawW = drawH / naturalRatio;
