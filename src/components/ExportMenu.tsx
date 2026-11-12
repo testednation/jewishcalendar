@@ -12,6 +12,7 @@ import {
   Printer,
   Scissors,
   Settings,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 
@@ -37,6 +38,11 @@ export interface ExportMenuProps {
   onExportOfflineHtml: () => void;
   onExportSettings?: () => void;
   onOpenSettingsBackup?: () => void;
+  printSafeMode?: boolean;
+  marginLabel?: string;
+  selectedPagesCount?: number;
+  totalPagesCount?: number;
+  onOpenPrintPreviewToolbar?: () => void;
   align?: 'left' | 'right';
 }
 
@@ -62,6 +68,11 @@ export function ExportMenu({
   onExportOfflineHtml,
   onExportSettings,
   onOpenSettingsBackup,
+  printSafeMode,
+  marginLabel,
+  selectedPagesCount,
+  totalPagesCount,
+  onOpenPrintPreviewToolbar,
   align = 'right',
 }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
@@ -140,6 +151,29 @@ export function ExportMenu({
               <span>Theme: {themeName}</span>
               <span aria-hidden="true">·</span>
               <span>{monthsPerPage} mo/page</span>
+              {marginLabel && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>Margin: {marginLabel}</span>
+                </>
+              )}
+              {typeof selectedPagesCount === 'number' && typeof totalPagesCount === 'number' && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-semibold text-primary">
+                    {selectedPagesCount}/{totalPagesCount} pages
+                  </span>
+                </>
+              )}
+              {printSafeMode && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                    <ShieldCheck className="size-3" />
+                    <span>Print-Safe</span>
+                  </span>
+                </>
+              )}
               {showCropMarks && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -156,6 +190,19 @@ export function ExportMenu({
                 </>
               )}
             </div>
+            {onOpenPrintPreviewToolbar && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenPrintPreviewToolbar();
+                }}
+                className="mt-2 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.06] px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/12"
+              >
+                <Printer className="size-3.5" />
+                <span>Open Print-Preview Toolbar (Margins, Page Range &amp; Print-Safe)</span>
+              </button>
+            )}
           </div>
 
           {/* Beginner-Friendly Desktop Printing Disclaimer */}
@@ -249,8 +296,11 @@ export function ExportMenu({
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                  Print-ready {paperSize.toUpperCase()} {orientation} calendar with your active{' '}
-                  {themeName} palette, masthead, and zmanim.
+                  Print-ready {paperSize.toUpperCase()} {orientation} calendar
+                  {typeof selectedPagesCount === 'number' && typeof totalPagesCount === 'number'
+                    ? ` (${selectedPagesCount} of ${totalPagesCount} pages)`
+                    : ''}{' '}
+                  with your active {themeName} palette, masthead, and zmanim.
                 </p>
               </div>
             </button>

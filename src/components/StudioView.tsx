@@ -45,12 +45,15 @@ import {
   MinhagType,
   PersonalHebrewEvent,
   PRESET_LOCATIONS,
+  PRINT_MARGIN_PRESETS,
+  PrintMarginPreset,
   SHORT_MONTH_NAMES,
   ZmanimProfileType,
   detectUserGeoLocation,
   exportCalendarToPdf,
   formatAutoOrgName,
   formatDateKey,
+  formatZmanTime,
   generateCalendar,
   generateCsvContent,
   generateIcsContent,
@@ -102,6 +105,7 @@ import { CustomEventsManager, DEFAULT_CUSTOM_EVENTS } from './CustomEventsManage
 import { LanguageSwitcher, LogoMark } from './LogoMark';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { CalendarThemeToggle } from './CalendarThemeToggle';
+import { PageDescriptor, PageRangeMode, PrintPreviewToolbar } from './PrintPreviewToolbar';
 import { useTranslation } from '../i18n/translations';
 
 const SETTINGS_STORAGE_KEY = 'luach:studio:settings:v3';
@@ -306,11 +310,11 @@ export function StudioView({
   const [cityResults, setCityResults] = useState<CitySearchResult[] | null>(null);
   const [searchingCities, setSearchingCities] = useState(false);
   const [detectingGeo, setDetectingGeo] = useState(false);
-  const [showManualCoords, setShowManualCoords] = useState(false);
-  const [manualName, setManualName] = useState('');
-  const [manualLat, setManualLat] = useState('');
-  const [manualLon, setManualLon] = useState('');
-  const [manualTz, setManualTz] = useState('');
+  const [showManualCoords, setShowManualCoords] = useState(true);
+  const [manualName, setManualName] = useState(defaultLoc.name);
+  const [manualLat, setManualLat] = useState(defaultLoc.latitude.toFixed(4));
+  const [manualLon, setManualLon] = useState(defaultLoc.longitude.toFixed(4));
+  const [manualTz, setManualTz] = useState(defaultLoc.tzid);
   const [detectingTz, setDetectingTz] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfResolution, setPdfResolution] = useState<'high' | 'standard'>('high');
@@ -319,6 +323,46 @@ export function StudioView({
     total: number;
     label: string;
   } | null>(null);
+
+  // Print-Preview Toolbar states (Margins, Page Range, Print-Safe Mode, Toolbar visibility)
+  const [marginPreset, setMarginPreset] = useState<PrintMarginPreset>(
+    savedState?.marginPreset ?? 'normal'
+  );
+  const [customMarginInches, setCustomMarginInches] = useState<number | null>(
+    savedState?.customMarginInches ?? null
+  );
+  const [pageRangeMode, setPageRangeMode] = useState<PageRangeMode>('all');
+  const [rangeStartPage, setRangeStartPage] = useState<number>(1);
+  const [rangeEndPage, setRangeEndPage] = useState<number>(12);
+  const [customRangeInput, setCustomRangeInput] = useState<string>('');
+  const [customSelectedPageIndices, setCustomSelectedPageIndices] = useState<number[]>([]);
+  const [hideUnselectedPages, setHideUnselectedPages] = useState<boolean>(false);
+  const [showPrintToolbar, setShowPrintToolbar] = useState<boolean>(true);
+
+  const printSafeMode = Boolean(
+    paletteOverrides.printInkSaver && paletteOverrides.highContrastBorders
+  );
+
+  const handleTogglePrintSafeMode = (next: boolean) => {
+    setPaletteOverrides((prev) => ({
+      ...prev,
+      printInkSaver: next,
+      highContrastBorders: next,
+    }));
+    notify(
+      next
+        ? 'Print-Safe Mode ON: Pure white paper (#FFFFFF) + crisp 1.5px dark ink borders'
+        : 'Print-Safe Mode turned off (using theme background & borders)'
+    );
+  };
+
+  const activeMarginPresetObj = useMemo(
+    () => PRINT_MARGIN_PRESETS.find((p) => p.id === marginPreset) ?? PRINT_MARGIN_PRESETS[2],
+    [marginPreset]
+  );
+
+  const effectiveMarginInches =
+    customMarginInches !== null ? customMarginInches : activeMarginPresetObj.inches;
 
   const printContainerRef = useRef<HTMLDivElement>(null);
 
@@ -331,9 +375,11 @@ export function StudioView({
       styleEl.id = styleId;
       document.head.appendChild(styleEl);
     }
-    const pageMargin = showCropMarks ? '0.5in' : '0.4in';
+    const pageMargin = showCropMarks
+      ? `${Math.max(0.5, effectiveMarginInches).toFixed(2)}in`
+      : `${effectiveMarginInches.toFixed(2)}in`;
     styleEl.textContent = `@media print { @page { size: ${paperSize} ${orientation}; margin: ${pageMargin}; } }`;
-  }, [paperSize, orientation, showCropMarks]);
+  }, [paperSize, orientation, showCropMarks, effectiveMarginInches]);
 
   const notify = (msg: string) => {
     setStatusMessage(msg);
@@ -761,18 +807,44 @@ export function StudioView({
     notify(`Location set to ${res.name}`);
   };
 
+  // Keep Latitude, Longitude, Location Name, and Timezone fields populated whenever location changes
+  useEffect(() => {
+    setManualName(location.name);
+    setManualLat(location.latitude.toFixed(4));
+    setManualLon(location.longitude.toFixed(4));
+    setManualTz(location.tzid);
+  }, [location.name, location.latitude, location.longitude, location.tzid]);
+
+  const todaySampleDay = useMemo(() => {
+    for (const m of calendar.months) {
+      for (const w of m.weeks) {
+        for (const d of w) {
+          if (d?.isToday) return d;
+        }
+      }
+    }
+    return calendar.months[0]?.weeks.flat().find((d): d is CalendarDay => d !== null) ?? null;
+  }, [calendar]);
+
   const handleUseCurrentLocation = async () => {
     setDetectingGeo(true);
     try {
       const geoLoc = await detectUserGeoLocation(true);
       if (geoLoc) {
         setLocation(geoLoc);
+        setManualName(geoLoc.name);
+        setManualLat(geoLoc.latitude.toFixed(4));
+        setManualLon(geoLoc.longitude.toFixed(4));
+        setManualTz(geoLoc.tzid);
+        setShowManualCoords(true);
         setUserSelectedManualLocation(false);
         setHasCustomOrgName(false);
         setOrgName(formatAutoOrgName(geoLoc.city));
-        notify(`Location & title updated to ${geoLoc.city}`);
+        notify(
+          `Detected ${geoLoc.city} (Lat ${geoLoc.latitude.toFixed(4)}°, Lon ${geoLoc.longitude.toFixed(4)}°) — Local Zmanim updated!`
+        );
       } else {
-        notify('Could not detect geolocation — try searching by city.');
+        notify('Could not detect geolocation — try searching by city or entering coordinates.');
       }
     } finally {
       setDetectingGeo(false);
@@ -834,10 +906,11 @@ export function StudioView({
   const handleExportPdf = async (resOverride?: 'high' | 'standard') => {
     if (!printContainerRef.current || exportingPdf) return;
     const effectiveRes = resOverride ?? pdfResolution;
+    const pagesToExportCount = selectedPageIndices.length || pageGroups.length;
     setExportingPdf(true);
     setPdfProgress({
       current: 1,
-      total: 12,
+      total: pagesToExportCount,
       label: effectiveRes === 'high' ? 'Rendering 300 DPI Print PDF…' : 'Rendering PDF…',
     });
     try {
@@ -848,7 +921,11 @@ export function StudioView({
           paperSize,
           orientation,
           fitToPage,
-          monthsPerPage,
+          monthsPerPage: effectiveMpp,
+          marginPreset,
+          customMarginInches: customMarginInches ?? undefined,
+          selectedPageIndices,
+          printSafeMode,
           showCropMarks,
           backgroundColor: activeTheme.tokens.background,
           title: `${orgName} — ${year}`,
@@ -859,7 +936,9 @@ export function StudioView({
         }
       );
       notify(
-        `High-resolution PDF downloaded (${paperSize.toUpperCase()} ${orientation}, ${
+        `High-resolution PDF downloaded (${pagesToExportCount} ${
+          pagesToExportCount === 1 ? 'page' : 'pages'
+        }, ${paperSize.toUpperCase()} ${orientation}, ${
           effectiveRes === 'high' ? '300 DPI' : '150 DPI'
         })`
       );
@@ -973,6 +1052,104 @@ export function StudioView({
     return groups;
   }, [calendar.months.length, startMonthIndex, effectiveMpp, interMonthPages]);
 
+  const pageDescriptors: PageDescriptor[] = useMemo(() => {
+    return pageGroups.map((group, idx) => {
+      const pageNumber = idx + 1;
+      if (group.kind === 'inter') {
+        const title =
+          group.interIndex !== undefined
+            ? interMonthPages[String(group.interIndex)]?.title
+            : '';
+        return {
+          index: idx,
+          pageNumber,
+          shortLabel: 'Dedication',
+          fullLabel: `Page ${pageNumber} · ${title || 'Dedication Page'}`,
+        };
+      }
+      const firstIdx = group.monthIndexes[0];
+      const lastIdx = group.monthIndexes[group.monthIndexes.length - 1];
+      const firstMonth = calendar.months[firstIdx];
+      const lastMonth = calendar.months[lastIdx];
+      if (!firstMonth) {
+        return {
+          index: idx,
+          pageNumber,
+          shortLabel: `P${pageNumber}`,
+          fullLabel: `Page ${pageNumber}`,
+        };
+      }
+      if (group.monthIndexes.length === 1) {
+        return {
+          index: idx,
+          pageNumber,
+          shortLabel: SHORT_MONTH_NAMES[firstMonth.gregMonth] ?? firstMonth.name.slice(0, 3),
+          fullLabel: `Page ${pageNumber} · ${firstMonth.name} ${firstMonth.gregYear}`,
+        };
+      }
+      const s1 = SHORT_MONTH_NAMES[firstMonth.gregMonth] ?? firstMonth.name.slice(0, 3);
+      const s2 = lastMonth
+        ? SHORT_MONTH_NAMES[lastMonth.gregMonth] ?? lastMonth.name.slice(0, 3)
+        : s1;
+      return {
+        index: idx,
+        pageNumber,
+        shortLabel: `${s1}–${s2}`,
+        fullLabel: `Page ${pageNumber} · ${s1}–${s2} ${firstMonth.gregYear}`,
+      };
+    });
+  }, [pageGroups, calendar.months, interMonthPages]);
+
+  // Keep rangeEndPage & customSelectedPageIndices valid when pageGroups.length changes
+  useEffect(() => {
+    const total = pageGroups.length;
+    if (total === 0) return;
+    setRangeStartPage((prev) => Math.max(1, Math.min(prev, total)));
+    setRangeEndPage((prev) => (prev > total || prev < 1 ? total : prev));
+    setCustomSelectedPageIndices((prev) => {
+      if (prev.length === 0) {
+        return Array.from({ length: total }, (_, i) => i);
+      }
+      const valid = prev.filter((i) => i >= 0 && i < total);
+      return valid.length > 0 ? valid : Array.from({ length: total }, (_, i) => i);
+    });
+  }, [pageGroups.length]);
+
+  const selectedPageIndices: number[] = useMemo(() => {
+    const total = pageGroups.length;
+    if (total === 0) return [];
+    if (pageRangeMode === 'all') {
+      return Array.from({ length: total }, (_, i) => i);
+    }
+    if (pageRangeMode === 'range') {
+      const start = Math.max(1, Math.min(rangeStartPage, rangeEndPage));
+      const end = Math.min(total, Math.max(rangeStartPage, rangeEndPage));
+      const list: number[] = [];
+      for (let p = start; p <= end; p++) {
+        list.push(p - 1);
+      }
+      return list;
+    }
+    const valid = customSelectedPageIndices
+      .filter((i) => i >= 0 && i < total)
+      .sort((a, b) => a - b);
+    return valid;
+  }, [pageGroups.length, pageRangeMode, rangeStartPage, rangeEndPage, customSelectedPageIndices]);
+
+  const handleToggleSinglePageForExport = (pageIdx: number) => {
+    const base =
+      pageRangeMode === 'custom'
+        ? customSelectedPageIndices
+        : selectedPageIndices;
+    const exists = base.includes(pageIdx);
+    const next = exists
+      ? base.filter((i) => i !== pageIdx)
+      : [...base, pageIdx].sort((a, b) => a - b);
+    setPageRangeMode('custom');
+    setCustomSelectedPageIndices(next);
+    setCustomRangeInput(next.map((i) => i + 1).join(', '));
+  };
+
   const showSidebarOnMobile = mobileTab === 'customize' || mobileTab === 'export';
   const showExportOnlyOnMobile = mobileTab === 'export';
   const showCustomizeOnMobile = mobileTab === 'customize';
@@ -1080,6 +1257,14 @@ export function StudioView({
               onExportOfflineHtml={handleExportOfflineHtml}
               onExportSettings={handleExportSettingsJson}
               onOpenSettingsBackup={() => setIsSettingsBackupModalOpen(true)}
+              printSafeMode={printSafeMode}
+              marginLabel={`${effectiveMarginInches.toFixed(2)}"`}
+              selectedPagesCount={selectedPageIndices.length}
+              totalPagesCount={pageGroups.length}
+              onOpenPrintPreviewToolbar={() => {
+                setPreviewMode('pages');
+                setShowPrintToolbar(true);
+              }}
               align="right"
             />
             {onBackToLanding && (
@@ -1191,20 +1376,80 @@ export function StudioView({
               </div>
             </div>
 
-            {/* Card 2: Location */}
+            {/* Card 2: Location & Geolocation Zmanim */}
             <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-              <div className="flex items-center gap-2">
-                <MapPin className="size-4 text-primary" />
-                <h2 className="font-display text-base font-semibold">
-                  {t('dash.location.title')}
-                </h2>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="size-4 text-primary" />
+                  <h2 className="font-display text-base font-semibold">
+                    {t('dash.location.title')}
+                  </h2>
+                </div>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-primary">
+                  {location.latitude.toFixed(3)}°, {location.longitude.toFixed(3)}°
+                </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{t('dash.location.desc')}</p>
 
               <div className="mt-4 flex flex-col gap-3">
+                {/* Primary Detect My Location Button (Geolocation API) */}
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={detectingGeo}
+                  className="inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.08] px-3.5 py-2 text-xs font-semibold text-primary shadow-2xs transition-colors hover:bg-primary/[0.15] disabled:opacity-50"
+                >
+                  {detectingGeo ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <LocateFixed className="size-4 text-primary" />
+                  )}
+                  <span>
+                    {detectingGeo ? 'Detecting Your Coordinates…' : 'Detect My Location'}
+                  </span>
+                </button>
+
+                {/* Live Populated Coordinates & Local Zmanim Preview Box */}
+                <div className="rounded-xl border border-border/80 bg-muted/25 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-foreground truncate">
+                      {location.name}
+                    </span>
+                    <span className="shrink-0 rounded bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border">
+                      {location.tzid}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border/70 bg-card px-2.5 py-1.5">
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        Latitude
+                      </span>
+                      <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                        {location.latitude.toFixed(4)}° {location.latitude >= 0 ? 'N' : 'S'}
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-card px-2.5 py-1.5">
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        Longitude
+                      </span>
+                      <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                        {location.longitude.toFixed(4)}° {location.longitude >= 0 ? 'E' : 'W'}
+                      </span>
+                    </div>
+                  </div>
+                  {todaySampleDay && (
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                      <span>Local Zmanim Today:</span>
+                      <span className="font-mono font-medium tabular-nums text-foreground">
+                        Sunrise {formatZmanTime(todaySampleDay.zmanim.sunrise, location.tzid, hour12)} · Sunset {formatZmanTime(todaySampleDay.zmanim.sunset, location.tzid, hour12)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">
-                    {t('dash.location.of')}
+                    {t('dash.location.of')} (Community Presets)
                   </label>
                   <select
                     value={
@@ -1221,7 +1466,9 @@ export function StudioView({
                       </option>
                     ))}
                     {!PRESET_LOCATIONS.some((p) => p.id === location.id) && (
-                      <option value="custom">Custom: {location.name}</option>
+                      <option value="custom">
+                        Active: {location.name} ({location.latitude.toFixed(2)}°, {location.longitude.toFixed(2)}°)
+                      </option>
                     )}
                   </select>
                 </div>
@@ -1272,25 +1519,7 @@ export function StudioView({
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleUseCurrentLocation}
-                  disabled={detectingGeo}
-                  className="inline-flex min-h-[42px] w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/30 text-xs font-medium hover:bg-accent disabled:opacity-50"
-                >
-                  {detectingGeo ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <LocateFixed className="size-3.5 text-primary" />
-                  )}
-                  <span>
-                    {detectingGeo
-                      ? t('dash.location.detecting')
-                      : t('dash.location.useCurrent')}
-                  </span>
-                </button>
-
-                {/* Manual Coordinates Accordion */}
+                {/* Latitude & Longitude Coordinates Accordion */}
                 <div className="border-t border-border pt-2">
                   <button
                     type="button"
@@ -1306,35 +1535,63 @@ export function StudioView({
                   </button>
 
                   {showManualCoords && (
-                    <div className="mt-3 flex flex-col gap-2.5 rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="mt-2.5 flex flex-col gap-2.5 rounded-xl border border-border bg-muted/20 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          Auto-populated via Geolocation or edit manually:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleUseCurrentLocation}
+                          disabled={detectingGeo}
+                          className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-primary hover:underline disabled:opacity-50"
+                        >
+                          <LocateFixed className="size-3" />
+                          <span>Detect My Location</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
+                        aria-label="Location Name"
                         value={manualName}
                         onChange={(e) => setManualName(e.target.value)}
                         placeholder="Location Name (e.g. Safed, Israel)"
                         className="min-h-[38px] rounded-md border border-border bg-background px-2.5 text-xs"
                       />
                       <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          step="any"
-                          value={manualLat}
-                          onChange={(e) => setManualLat(e.target.value)}
-                          placeholder="Lat (40.668)"
-                          className="min-h-[38px] rounded-md border border-border bg-background px-2.5 font-mono text-xs"
-                        />
-                        <input
-                          type="number"
-                          step="any"
-                          value={manualLon}
-                          onChange={(e) => setManualLon(e.target.value)}
-                          placeholder="Lon (-73.945)"
-                          className="min-h-[38px] rounded-md border border-border bg-background px-2.5 font-mono text-xs"
-                        />
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+                            Latitude
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            aria-label="Latitude"
+                            value={manualLat}
+                            onChange={(e) => setManualLat(e.target.value)}
+                            placeholder="Lat (40.668)"
+                            className="min-h-[38px] w-full rounded-md border border-border bg-background px-2.5 font-mono text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+                            Longitude
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            aria-label="Longitude"
+                            value={manualLon}
+                            onChange={(e) => setManualLon(e.target.value)}
+                            placeholder="Lon (-73.945)"
+                            className="min-h-[38px] w-full rounded-md border border-border bg-background px-2.5 font-mono text-xs"
+                          />
+                        </div>
                       </div>
                       <div className="flex gap-1.5">
                         <input
                           type="text"
+                          aria-label="IANA Timezone"
                           value={manualTz}
                           onChange={(e) => setManualTz(e.target.value)}
                           placeholder="America/New_York"
@@ -1346,13 +1603,13 @@ export function StudioView({
                           disabled={detectingTz}
                           className="min-h-[38px] cursor-pointer rounded-md border border-border bg-card px-2.5 text-xs font-medium hover:bg-accent"
                         >
-                          {t('dash.location.detect')}
+                          {t('dash.location.detect')} TZ
                         </button>
                       </div>
                       <button
                         type="button"
                         onClick={handleApplyManualLocation}
-                        className="min-h-[38px] cursor-pointer rounded-md bg-primary text-xs font-semibold text-primary-foreground"
+                        className="min-h-[38px] cursor-pointer rounded-md bg-primary text-xs font-semibold text-primary-foreground hover:opacity-95"
                       >
                         {t('dash.location.applyCustom')}
                       </button>
@@ -2478,6 +2735,28 @@ export function StudioView({
                     </>
                   )}
 
+                  {/* Toggle Print-Preview Toolbar Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!showPrintToolbar) {
+                        setShowPrintToolbar(true);
+                      } else {
+                        setShowPrintToolbar(false);
+                      }
+                    }}
+                    aria-pressed={showPrintToolbar}
+                    title="Show or hide the Print-Preview Toolbar (Print-Safe Mode, Margins & Page Range)"
+                    className={`inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                      showPrintToolbar
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Printer className="size-3.5" />
+                    <span>Print Setup ({selectedPageIndices.length}/{pageGroups.length}p)</span>
+                  </button>
+
                   <ExportMenu
                     orgName={orgName}
                     locationName={location.name}
@@ -2500,6 +2779,14 @@ export function StudioView({
                     onExportOfflineHtml={handleExportOfflineHtml}
                     onExportSettings={handleExportSettingsJson}
                     onOpenSettingsBackup={() => setIsSettingsBackupModalOpen(true)}
+                    printSafeMode={printSafeMode}
+                    marginLabel={`${effectiveMarginInches.toFixed(2)}"`}
+                    selectedPagesCount={selectedPageIndices.length}
+                    totalPagesCount={pageGroups.length}
+                    onOpenPrintPreviewToolbar={() => {
+                      setPreviewMode('pages');
+                      setShowPrintToolbar(true);
+                    }}
                     align="right"
                   />
 
@@ -2592,6 +2879,60 @@ export function StudioView({
               )}
           </div>
 
+          {/* Dedicated Print-Preview & PDF Export Toolbar (Print-Safe Mode, Margins, Page Ranges) */}
+          {desktopMainTab === 'calendar' &&
+            mobileTab !== 'today' &&
+            (showPrintToolbar || previewMode === 'pages') && (
+              <PrintPreviewToolbar
+                previewMode={previewMode}
+                onChangePreviewMode={setPreviewMode}
+                printSafeMode={printSafeMode}
+                onTogglePrintSafeMode={handleTogglePrintSafeMode}
+                marginPreset={marginPreset}
+                onChangeMarginPreset={(preset) => {
+                  setMarginPreset(preset);
+                  const found = PRINT_MARGIN_PRESETS.find((p) => p.id === preset);
+                  if (found) notify(`Page margins set to ${found.label}`);
+                }}
+                customMarginInches={customMarginInches}
+                onChangeCustomMarginInches={setCustomMarginInches}
+                pageRangeMode={pageRangeMode}
+                onChangePageRangeMode={setPageRangeMode}
+                rangeStartPage={rangeStartPage}
+                rangeEndPage={rangeEndPage}
+                onChangeRangeStartEnd={(start, end) => {
+                  setRangeStartPage(start);
+                  setRangeEndPage(end);
+                }}
+                customRangeInput={customRangeInput}
+                onChangeCustomRangeInput={setCustomRangeInput}
+                selectedPageIndices={selectedPageIndices}
+                onToggleSinglePage={handleToggleSinglePageForExport}
+                onSelectPageIndices={setCustomSelectedPageIndices}
+                hideUnselectedPages={hideUnselectedPages}
+                onToggleHideUnselectedPages={setHideUnselectedPages}
+                pages={pageDescriptors}
+                paperSize={paperSize}
+                onChangePaperSize={(size) => {
+                  setPaperSize(size);
+                  notify(`Paper size set to ${size.toUpperCase()}`);
+                }}
+                orientation={orientation}
+                onChangeOrientation={(nextOrientation) => {
+                  setOrientation(nextOrientation);
+                  notify(`Orientation set to ${nextOrientation}`);
+                }}
+                showCropMarks={showCropMarks}
+                onToggleCropMarks={setShowCropMarks}
+                pdfResolution={pdfResolution}
+                onChangePdfResolution={setPdfResolution}
+                exportingPdf={exportingPdf}
+                pdfProgress={pdfProgress}
+                onExportPdf={() => handleExportPdf(pdfResolution)}
+                onPrint={handlePrint}
+              />
+            )}
+
           {/* Today's Zmanim & Live Webcal View */}
           {(mobileTab === 'today' || desktopMainTab === 'today') && (
             <TodayZmanimView
@@ -2601,6 +2942,8 @@ export function StudioView({
               customEvents={customEvents}
               specialEvents={specialEvents}
               onExportIcs={handleExportIcs}
+              onDetectLocation={handleUseCurrentLocation}
+              detectingGeo={detectingGeo}
             />
           )}
 
@@ -2701,10 +3044,20 @@ export function StudioView({
                     className="flex flex-col gap-10"
                     style={{ zoom: zoom !== 1 ? zoom : undefined }}
                   >
-                    {pageGroups.map((group, pIdx) => (
+                    {pageGroups.map((group, pIdx) => {
+                      const isPageSelected = selectedPageIndices.includes(pIdx);
+                      const sheetPaddingPx = Math.round(effectiveMarginInches * 56);
+                      return (
                       <div
                         key={pIdx}
-                        className={`print-page-sheet relative mx-auto flex flex-col rounded-2xl border border-border bg-card p-4 shadow-md transition-all sm:p-6 ${
+                        style={{ padding: `${sheetPaddingPx}px` }}
+                        className={`print-page-sheet relative mx-auto flex flex-col rounded-2xl border bg-card shadow-md transition-all ${
+                          isPageSelected
+                            ? 'border-border'
+                            : hideUnselectedPages
+                            ? 'hidden print:hidden'
+                            : 'border-dashed border-border/60 opacity-45 print:hidden'
+                        } ${
                           orientation === 'landscape'
                             ? fitToPage
                               ? 'w-full max-w-none min-h-[780px] sm:min-h-[880px]'
@@ -2714,17 +3067,34 @@ export function StudioView({
                               ? 'w-full max-w-[900px] min-h-[1120px] sm:min-h-[1280px]'
                               : 'w-full max-w-[900px] min-h-[960px] sm:min-h-[1100px]'
                             : 'w-full max-w-[850px]'
-                        } ${showCropMarks ? 'p-7 sm:p-9' : ''}`}
+                        }`}
                       >
                         {showCropMarks && <CropMarksOverlay />}
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground print:hidden">
-                          <span className="font-semibold text-foreground">
-                            Page {pIdx + 1} of {pageGroups.length}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5 font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">
+                              Page {pIdx + 1} of {pageGroups.length}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSinglePageForExport(pIdx)}
+                              className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[10.5px] font-semibold transition-colors ${
+                                isPageSelected
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                  : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <span>
+                                {isPageSelected ? '✓ Included in PDF' : 'Excluded from PDF (Click to include)'}
+                              </span>
+                            </button>
+                          </div>
+                          <span className="inline-flex flex-wrap items-center gap-1.5 font-medium">
                             <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
-                              {paperSize.toUpperCase()} · {orientation.toUpperCase()}
+                              {paperSize.toUpperCase()} · {orientation.toUpperCase()} ·{' '}
+                              {effectiveMarginInches.toFixed(2)}&quot; MARGIN
                               {fitToPage ? ' · AUTO-STRETCHED' : ''}
+                              {printSafeMode ? ' · PRINT-SAFE' : ''}
                             </span>
                             <span className="text-[11px] tabular-nums text-muted-foreground">
                               {orientation === 'landscape'
@@ -2809,7 +3179,8 @@ export function StudioView({
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

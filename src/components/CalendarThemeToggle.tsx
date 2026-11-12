@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Palette, ChevronLeft, ChevronRight, ChevronDown, Check, Shuffle } from 'lucide-react';
+import { Palette, ChevronLeft, ChevronRight, ChevronDown, Check, Shuffle, Search } from 'lucide-react';
 import { CalendarTheme, ThemeCategory } from '../lib/themes';
 
 export interface CalendarThemeToggleProps {
@@ -86,11 +86,13 @@ export function CalendarThemeToggle({
           ? 'Traditional'
           : cat === 'minimalist'
             ? 'Minimalist'
-            : cat === 'high-contrast'
-              ? 'High Contrast'
-              : cat === 'dark'
-                ? 'Dark & Jewel'
-                : 'Custom';
+            : cat === 'seasonal'
+              ? 'Seasonal'
+              : cat === 'high-contrast'
+                ? 'High Contrast'
+                : cat === 'dark'
+                  ? 'Dark & Jewel'
+                  : 'Custom';
       cats.push({ id: cat, label });
     });
     return cats;
@@ -348,11 +350,24 @@ function ThemePopoverContent({
   onRandomTheme,
   totalThemesCount,
 }: ThemePopoverContentProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const visibleThemes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return themes;
+    return themes.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        t.category.toLowerCase().includes(q)
+    );
+  }, [themes, searchQuery]);
+
   return (
     <div
       role="dialog"
       aria-label="Calendar Themes"
-      className="absolute right-0 top-full z-50 mt-1.5 w-[340px] sm:w-[420px] rounded-2xl border border-border bg-card p-3 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+      className="absolute right-0 top-full z-50 mt-1.5 w-[340px] sm:w-[440px] rounded-2xl border border-border bg-card p-3 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
       onMouseLeave={() => onHoverTheme?.(null)}
     >
       {/* Popover Header */}
@@ -376,6 +391,18 @@ function ThemePopoverContent({
         </button>
       </div>
 
+      {/* Quick Search Input */}
+      <div className="relative mt-2">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search 68+ themes (e.g. Jerusalem, Gold, Bauhaus, Pesach)…"
+          className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-2.5 text-[11px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
+      </div>
+
       {/* Category Tabs */}
       <div className="mt-2 flex gap-1 overflow-x-auto pb-1.5">
         {categories.map((cat) => (
@@ -396,7 +423,7 @@ function ThemePopoverContent({
 
       {/* Themes Grid */}
       <div className="mt-2 grid max-h-[320px] grid-cols-1 sm:grid-cols-2 gap-1.5 overflow-y-auto pr-1">
-        {themes.map((th) => {
+        {visibleThemes.map((th) => {
           const isActive = th.id === currentThemeId;
           return (
             <button

@@ -10,6 +10,8 @@ import {
   Plus,
   Printer,
   RotateCcw,
+  Search,
+  Shuffle,
   Sliders,
   Sparkles,
   Sun,
@@ -214,14 +216,35 @@ export function ThemeCustomizerPanel({
   onNotify: (msg: string) => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState<'all' | ThemeCategory>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [specimenView, setSpecimenView] = useState<'split' | 'regular' | 'print'>('split');
   const [showFineTune, setShowFineTune] = useState<boolean>(false);
   const [customDraftName, setCustomDraftName] = useState<string>('');
   const [savingAsCustom, setSavingAsCustom] = useState<boolean>(false);
 
-  const filteredThemes = themes.filter((th) =>
-    selectedCategory === 'all' ? true : th.category === selectedCategory
-  );
+  const filteredThemes = themes.filter((th) => {
+    const matchesCat = selectedCategory === 'all' ? true : th.category === selectedCategory;
+    if (!matchesCat) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      th.name.toLowerCase().includes(q) ||
+      (th.description && th.description.toLowerCase().includes(q)) ||
+      th.category.toLowerCase().includes(q)
+    );
+  });
+
+  const handleRandomTheme = () => {
+    if (themes.length <= 1) return;
+    const currentIdx = themes.findIndex((t) => t.id === activeThemeId);
+    let randomIdx = Math.floor(Math.random() * themes.length);
+    if (randomIdx === currentIdx) {
+      randomIdx = (randomIdx + 1) % themes.length;
+    }
+    const chosen = themes[randomIdx];
+    onSelectTheme(chosen.id);
+    onNotify(`Applied ${chosen.name} (${chosen.badgeLabel ?? chosen.category}) theme`);
+  };
 
   const hasOverrides = Boolean(
     paletteOverrides.primary ||
@@ -389,22 +412,47 @@ export function ThemeCustomizerPanel({
         </div>
       </div>
 
-      {/* Category Filter Tabs: All / Traditional / Minimalist / High-Contrast / Dark */}
+      {/* Category Filter Tabs: All / Traditional / Minimalist / Seasonal / High-Contrast / Dark */}
       <div className="mt-4">
         <div className="flex items-center justify-between gap-2">
           <span className="block text-xs font-medium text-muted-foreground">
             1. Select Theme Style Family
           </span>
-          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-            {filteredThemes.length} of {themes.length} themes
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRandomTheme}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold text-primary transition-colors hover:bg-primary/10"
+              title="Pick a random calendar theme"
+            >
+              <Shuffle className="size-3" />
+              <span>Surprise Me</span>
+            </button>
+            <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+              {filteredThemes.length} of {themes.length} themes
+            </span>
+          </div>
         </div>
+
+        {/* Search themes input */}
+        <div className="relative mt-1.5">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search 68+ themes (e.g. Jerusalem, Gold, Bauhaus, Pesach, Olive)…"
+            className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+
         <div className="mt-1.5 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
           {(
             [
               { id: 'all', label: 'All' },
               { id: 'traditional', label: 'Traditional' },
               { id: 'minimalist', label: 'Minimalist' },
+              { id: 'seasonal', label: 'Seasonal' },
               { id: 'high-contrast', label: 'High-Contrast' },
               { id: 'dark', label: 'Dark' },
             ] as const

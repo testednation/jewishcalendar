@@ -1796,12 +1796,17 @@ export async function detectUserGeoLocation(
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: false,
-          timeout: 5000,
-          maximumAge: 600_000,
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 60_000,
         });
       });
-      const { latitude, longitude } = pos.coords;
+      const latitude = Number(pos.coords.latitude.toFixed(4));
+      const longitude = Number(pos.coords.longitude.toFixed(4));
+      const elevation =
+        typeof pos.coords.altitude === 'number' && !Number.isNaN(pos.coords.altitude)
+          ? Math.max(0, Math.round(pos.coords.altitude))
+          : 0;
       const [rev, tz] = await Promise.all([
         reverseGeocode(latitude, longitude),
         resolveTimezone(latitude, longitude),
@@ -1814,7 +1819,7 @@ export async function detectUserGeoLocation(
         countryCode: rev.countryCode,
         latitude,
         longitude,
-        elevation: 0,
+        elevation,
         tzid: tz,
       };
     } catch {
@@ -2100,11 +2105,98 @@ export function slugify(text: string): string {
     .toLowerCase();
 }
 
+export type PrintMarginPreset = 'minimal' | 'narrow' | 'normal' | 'wide';
+
+export const PRINT_MARGIN_PRESETS: {
+  id: PrintMarginPreset;
+  label: string;
+  shortLabel: string;
+  inches: number;
+  mm: number;
+  pt: number;
+  description: string;
+}[] = [
+  {
+    id: 'minimal',
+    label: 'Minimal (0.2 in / 5 mm)',
+    shortLabel: '0.2" Minimal',
+    inches: 0.2,
+    mm: 5,
+    pt: 14.4,
+    description: 'Maximum grid area for borderless-capable printers',
+  },
+  {
+    id: 'narrow',
+    label: 'Narrow (0.3 in / 7.5 mm)',
+    shortLabel: '0.3" Narrow',
+    inches: 0.3,
+    mm: 7.5,
+    pt: 21.6,
+    description: 'Compact border for modern home & office printers',
+  },
+  {
+    id: 'normal',
+    label: 'Standard (0.4 in / 10 mm)',
+    shortLabel: '0.4" Standard',
+    inches: 0.4,
+    mm: 10,
+    pt: 28.8,
+    description: 'Recommended safe margin for all printers',
+  },
+  {
+    id: 'wide',
+    label: 'Wide / Binder (0.65 in / 16.5 mm)',
+    shortLabel: '0.65" Wide',
+    inches: 0.65,
+    mm: 16.5,
+    pt: 46.8,
+    description: 'Extra room for 3-hole punch, spiral binding, or framing',
+  },
+];
+
+/**
+ * Parses a human-friendly 1-based page range string (e.g. "1-3, 5, 8-10")
+ * into a sorted array of 0-based page indices within [0, totalPages - 1].
+ */
+export function parsePageRangeString(input: string, totalPages: number): number[] {
+  if (totalPages <= 0) return [];
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return Array.from({ length: totalPages }, (_, i) => i);
+  }
+  const indices = new Set<number>();
+  const parts = trimmed.split(/[,;]+/);
+  for (const rawPart of parts) {
+    const part = rawPart.trim();
+    if (!part) continue;
+    const rangeMatch = part.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (rangeMatch) {
+      const a = parseInt(rangeMatch[1], 10);
+      const b = parseInt(rangeMatch[2], 10);
+      const start = Math.max(1, Math.min(a, b));
+      const end = Math.min(totalPages, Math.max(a, b));
+      for (let p = start; p <= end; p++) {
+        indices.add(p - 1);
+      }
+    } else if (/^\d+$/.test(part)) {
+      const p = parseInt(part, 10);
+      if (p >= 1 && p <= totalPages) {
+        indices.add(p - 1);
+      }
+    }
+  }
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
 export interface PdfExportOptions {
   paperSize: 'letter' | 'legal';
   orientation: 'portrait' | 'landscape';
   fitToPage: boolean;
   monthsPerPage: 1 | 4;
+  marginPreset?: PrintMarginPreset;
+  customMarginInches?: number;
+  selectedPageIndices?: number[];
+  printSafeMode?: boolean;
   showCropMarks?: boolean;
   backgroundColor?: string;
   title?: string;
@@ -2146,11 +2238,12 @@ export async function exportCalendarToPdf(
 
   const computedStyle = window.getComputedStyle(element);
   const themeStyleAttr = element.getAttribute('style') ?? '';
-  const paperBg =
-    options.backgroundColor ||
-    computedStyle.getPropertyValue('--background').trim() ||
-    computedStyle.backgroundColor ||
-    '#ffffff';
+  const paperBg = options.printSafeMode
+    ? '#ffffff'
+    : options.backgroundColor ||
+      computedStyle.getPropertyValue('--background').trim() ||
+      computedStyle.backgroundColor ||
+      '#ffffff';
 
   const stageWidthPx = options.orientation === 'landscape' ? 1360 : 1040;
 
@@ -2161,6 +2254,14 @@ export async function exportCalendarToPdf(
   const holder = document.createElement('div');
   holder.className = 'pdf-export-stage calendar-print';
   holder.style.cssText = `${themeStyleAttr}; position: fixed; left: -100000px; top: 0; width: ${stageWidthPx}px; background: ${paperBg}; color: var(--foreground, #1c2130); z-index: 9999; opacity: 1; padding: 0; margin: 0;`;
+  if (options.printSafeMode) {
+    holder.style.setProperty('--background', '#ffffff');
+    holder.style.setProperty('--card', '#ffffff');
+    holder.style.setProperty('--foreground', '#09090b');
+    holder.style.setProperty('--muted', '#f4f4f5');
+    holder.style.setProperty('--muted-foreground', '#1f2937');
+    holder.style.setProperty('--border', '#18181b');
+  }
   document.body.appendChild(holder);
 
   try {
@@ -2181,8 +2282,13 @@ export async function exportCalendarToPdf(
 
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    // Respect CSS @page { margin: 0.4in } -> 0.4 * 72pt = 28.8pt (or 36pt when crop marks & 0.125" bleed are active)
-    const margin = options.showCropMarks ? 36 : 28.8;
+    // Compute margin in points (1 inch = 72pt) from marginPreset or customMarginInches
+    const presetObj = PRINT_MARGIN_PRESETS.find((p) => p.id === (options.marginPreset ?? 'normal'));
+    const baseMarginPt =
+      typeof options.customMarginInches === 'number' && !Number.isNaN(options.customMarginInches)
+        ? Math.max(7.2, Math.min(108, options.customMarginInches * 72))
+        : (presetObj?.pt ?? 28.8);
+    const margin = options.showCropMarks ? Math.max(36, baseMarginPt) : baseMarginPt;
     const availW = pageW - margin * 2;
     const availH = pageH - margin * 2;
 
@@ -2373,10 +2479,19 @@ export async function exportCalendarToPdf(
       }
     }
 
-    const totalPages = pageSheets.length;
+    // Filter pageSheets by selectedPageIndices if specified
+    const filteredSheets =
+      options.selectedPageIndices && options.selectedPageIndices.length > 0
+        ? options.selectedPageIndices
+            .filter((idx) => idx >= 0 && idx < pageSheets.length)
+            .map((idx) => pageSheets[idx])
+        : pageSheets;
+
+    const sheetsToExport = filteredSheets.length > 0 ? filteredSheets : pageSheets;
+    const totalPages = sheetsToExport.length;
 
     for (let pIdx = 0; pIdx < totalPages; pIdx++) {
-      const { node, label } = pageSheets[pIdx];
+      const { node, label } = sheetsToExport[pIdx];
       options.onProgress?.(pIdx + 1, totalPages, label);
 
       if (pIdx > 0) {
