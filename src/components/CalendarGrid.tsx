@@ -1440,6 +1440,7 @@ export function FullCalendarView({
   sponsors = [],
   sponsorsEnabled = false,
   showCropMarks = false,
+  orientation = 'portrait',
 }: {
   calendar: GeneratedCalendar;
   settings: CalendarSettings;
@@ -1475,12 +1476,16 @@ export function FullCalendarView({
   sponsors?: CommunitySponsor[];
   sponsorsEnabled?: boolean;
   showCropMarks?: boolean;
+  orientation?: 'portrait' | 'landscape';
 }) {
   return (
     <div
-      className={`calendar-print print-area mx-auto w-full max-w-[960px] ${className}`}
+      className={`calendar-print print-area mx-auto w-full transition-all duration-200 ${
+        orientation === 'landscape' ? 'max-w-[1320px]' : 'max-w-[960px]'
+      } ${className}`}
       style={style}
       data-months-per-page={monthsPerPage}
+      data-orientation={orientation}
     >
       <CalendarMasthead
         calendar={calendar}

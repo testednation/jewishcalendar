@@ -1514,16 +1514,36 @@ export function StudioView({
                   <label className="block text-xs font-medium text-muted-foreground">
                     Orientation
                   </label>
-                  <select
-                    value={orientation}
-                    onChange={(e) =>
-                      setOrientation(e.target.value as 'portrait' | 'landscape')
-                    }
-                    className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-background px-2 text-xs font-medium"
-                  >
-                    <option value="portrait">Portrait</option>
-                    <option value="landscape">Landscape</option>
-                  </select>
+                  <div className="mt-1 flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setOrientation('portrait')}
+                      className={`flex flex-1 min-h-[38px] cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                        orientation === 'portrait'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" />
+                      </svg>
+                      <span>Portrait</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrientation('landscape')}
+                      className={`flex flex-1 min-h-[38px] cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                        orientation === 'landscape'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                      </svg>
+                      <span>Landscape</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -2211,6 +2231,50 @@ export function StudioView({
                     </button>
                   </div>
 
+                  {/* 1-Click Orientation Switcher (Portrait vs Landscape) */}
+                  <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrientation('portrait');
+                        notify('Orientation: Portrait (vertical 8.5 × 11 in)');
+                      }}
+                      title="Portrait orientation: Vertical calendar format (8.5 × 11 in)"
+                      aria-pressed={orientation === 'portrait'}
+                      className={`inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                        orientation === 'portrait'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" />
+                        <line x1="9" y1="18" x2="15" y2="18" />
+                      </svg>
+                      <span>Portrait</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrientation('landscape');
+                        notify('Orientation: Landscape (horizontal wall calendar)');
+                      }}
+                      title="Landscape orientation: Horizontal wall calendar format (11 × 8.5 in)"
+                      aria-pressed={orientation === 'landscape'}
+                      className={`inline-flex min-h-[34px] cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                        orientation === 'landscape'
+                          ? 'bg-card text-foreground shadow-xs font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="18" y1="9" x2="18" y2="15" />
+                      </svg>
+                      <span>Landscape</span>
+                    </button>
+                  </div>
+
                   {/* Quick Yahrzeit Side-Panel Drawer Button */}
                   <button
                     type="button"
@@ -2506,6 +2570,7 @@ export function StudioView({
                     onSelectDay={(d) => setSelectedDay(d)}
                     jewishOptions={jewishOptions}
                     monthsPerPage={effectiveMpp}
+                    orientation={orientation}
                     photoCalendar={photoCalendar}
                     customPhoto={customPhoto}
                     monthPhotos={monthPhotos}
@@ -2565,16 +2630,33 @@ export function StudioView({
                     {pageGroups.map((group, pIdx) => (
                       <div
                         key={pIdx}
-                        className={`print-page-sheet relative rounded-2xl border border-border bg-card p-4 shadow-md sm:p-6 ${
-                          showCropMarks ? 'p-7 sm:p-9' : ''
-                        }`}
+                        className={`print-page-sheet relative mx-auto rounded-2xl border border-border bg-card p-4 shadow-md transition-all sm:p-6 ${
+                          orientation === 'landscape'
+                            ? 'w-full max-w-[1260px]'
+                            : 'w-full max-w-[850px]'
+                        } ${showCropMarks ? 'p-7 sm:p-9' : ''}`}
                       >
                         {showCropMarks && <CropMarksOverlay />}
-                        <div className="mb-4 flex items-center justify-between border-b border-border pb-2 text-xs text-muted-foreground print:hidden">
-                          <span>Page {pIdx + 1}</span>
-                          <span>
-                            {paperSize.toUpperCase()} · {orientation.toUpperCase()}
-                            {showCropMarks ? ' · 0.125" BLEED' : ''}
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 text-xs text-muted-foreground print:hidden">
+                          <span className="font-semibold text-foreground">
+                            Page {pIdx + 1} of {pageGroups.length}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 font-medium">
+                            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
+                              {paperSize.toUpperCase()} · {orientation.toUpperCase()}
+                            </span>
+                            <span className="text-[11px] tabular-nums text-muted-foreground">
+                              {orientation === 'landscape'
+                                ? paperSize === 'letter'
+                                  ? '11 × 8.5 in'
+                                  : '14 × 8.5 in'
+                                : paperSize === 'letter'
+                                ? '8.5 × 11 in'
+                                : '8.5 × 14 in'}
+                            </span>
+                            {showCropMarks && (
+                              <span className="text-primary font-semibold">· 0.125&quot; BLEED</span>
+                            )}
                           </span>
                         </div>
 

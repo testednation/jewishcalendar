@@ -111,10 +111,6 @@ body {
 }
 
 @media print {
-  @page {
-    size: auto;
-    margin: 0.4in;
-  }
   html,
   body {
     background: #ffffff !important;
@@ -130,18 +126,44 @@ body {
   .print-grid-view {
     display: grid !important;
   }
-  .print-month {
+  .print-page-sheet {
+    break-after: page !important;
+    page-break-after: always !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .print-page-sheet:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+  /* Inside a print page sheet, individual months must not trigger redundant page breaks */
+  .print-page-sheet .print-month {
+    break-after: auto !important;
+    page-break-after: auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  /* In continuous print mode, break after each individual month */
+  .calendar-print:not([data-months-per-page="4"]) .print-month {
     break-after: page;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .print-month:last-child {
+  .calendar-print:not([data-months-per-page="4"]) .print-month:last-child {
     break-after: auto;
   }
   .inter-month-page {
     break-before: page;
     page-break-before: always;
-    min-height: 9in;
+    min-height: 8.5in;
   }
   .print-area {
     width: 100% !important;

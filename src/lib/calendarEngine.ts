@@ -2238,10 +2238,15 @@ export async function exportCalendarToPdf(
 
     if (existingPageSheets.length > 0) {
       existingPageSheets.forEach((sheet, idx) => {
+        const sheetClone = sheet.cloneNode(true) as HTMLElement;
+        sheetClone.style.maxWidth = '100%';
+        sheetClone.style.width = '100%';
+        sheetClone.style.boxShadow = 'none';
+        sheetClone.style.border = 'none';
         const wrapper = document.createElement('div');
         wrapper.className = 'print-area';
         wrapper.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box;`;
-        wrapper.appendChild(sheet.cloneNode(true));
+        wrapper.appendChild(sheetClone);
         pageSheets.push({ node: wrapper, label: `Page ${idx + 1}` });
       });
     } else {
@@ -2252,10 +2257,13 @@ export async function exportCalendarToPdf(
       ) as HTMLElement[];
 
       if (monthAndInterNodes.length === 0) {
+        const cloneEl = clone.cloneNode(true) as HTMLElement;
+        cloneEl.style.maxWidth = '100%';
+        cloneEl.style.width = '100%';
         const wrapper = document.createElement('div');
         wrapper.className = 'print-area';
         wrapper.style.cssText = `width: ${stageWidthPx}px; background: ${paperBg}; padding: 16px; box-sizing: border-box;`;
-        wrapper.appendChild(clone);
+        wrapper.appendChild(cloneEl);
         pageSheets.push({ node: wrapper, label: 'Page 1' });
       } else {
         const step = options.monthsPerPage === 4 ? 4 : 1;
