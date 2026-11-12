@@ -33,6 +33,7 @@ import {
   getEventsForDay,
   getStructuredEventsForDay,
   getYahrzeitsForDay,
+  isHolidayVisible,
 } from '../lib/calendarEngine';
 import { CommunitySponsor } from './SponsorGridManager';
 import { useTranslation } from '../i18n/translations';
@@ -402,9 +403,14 @@ export function DayCell({
   const [cellDropActive, setCellDropActive] = useState<boolean>(false);
 
   const dateKey = formatDateKey(day.date);
-  const isYomTov = day.holidays.some((h) => h.isYomTov);
-  const isChabad = day.holidays.some((h) => h.isChabad);
-  const holidayLine = day.holidays
+  const showYahrzeits = jewishOptions?.showYahrzeits ?? true;
+  const showCustomEvents = jewishOptions?.showCustomEvents ?? true;
+  const effectiveHasYahrzeit = hasYahrzeit && showYahrzeits;
+
+  const visibleHolidays = day.holidays.filter((h) => isHolidayVisible(h, jewishOptions));
+  const isYomTov = visibleHolidays.some((h) => h.isYomTov);
+  const isChabad = visibleHolidays.some((h) => h.isChabad);
+  const holidayLine = visibleHolidays
     .slice(0, 2)
     .map((h) => h.name)
     .join(' · ');
@@ -413,7 +419,7 @@ export function DayCell({
     (jewishOptions?.parsha ?? true) && day.jewishInfo.parsha,
     (jewishOptions?.pirkeiAvot ?? true) && day.jewishInfo.pirkeiAvot,
     (jewishOptions?.omer ?? true) && day.jewishInfo.omer,
-    jewishOptions?.birkatHaChodesh && day.jewishInfo.birkatHaChodesh,
+    (jewishOptions?.birkatHaChodesh ?? true) && day.jewishInfo.birkatHaChodesh,
     jewishOptions?.dafYomi && day.jewishInfo.dafYomi,
     jewishOptions?.rambam && day.jewishInfo.rambam,
     jewishOptions?.chitas && day.jewishInfo.chitas,
@@ -421,12 +427,17 @@ export function DayCell({
     .filter(Boolean)
     .join(' · ');
 
+  const showDailyZmanim = jewishOptions?.showDailyZmanim ?? true;
+  const showCandleLighting = (jewishOptions?.showCandleLighting ?? true) && Boolean(day.zmanim.candleLighting);
+  const showHavdalah = (jewishOptions?.showHavdalah ?? true) && Boolean(day.zmanim.havdalah);
+  const showSunTimes = (jewishOptions?.showSunTimes ?? true) && (!day.zmanim.candleLighting && !day.zmanim.havdalah);
+
   const candleStr = formatZmanTime(day.zmanim.candleLighting, location.tzid, settings.hour12, true);
   const havdalahStr = formatZmanTime(day.zmanim.havdalah, location.tzid, settings.hour12, true);
   const sunriseStr = formatZmanTime(day.zmanim.sunrise, location.tzid, settings.hour12, true);
   const sunsetStr = formatZmanTime(day.zmanim.sunset, location.tzid, settings.hour12, true);
 
-  const resolvedItems: DayEventItem[] =
+  const rawItems: DayEventItem[] =
     eventItems.length > 0
       ? eventItems
       : (events ?? []).map((label, idx) => ({
@@ -434,6 +445,12 @@ export function DayCell({
           kind: 'custom',
           label,
         }));
+
+  const resolvedItems: DayEventItem[] = rawItems.filter((item) => {
+    if (item.kind === 'hebrew' && item.category === 'yahrzeit' && !showYahrzeits) return false;
+    if (item.kind === 'custom' && !showCustomEvents) return false;
+    return true;
+  });
 
   const canReorderInCell = Boolean(onReorderDayEvents && resolvedItems.length > 1);
 
@@ -501,7 +518,7 @@ export function DayCell({
       className={`group relative flex min-h-[74px] cursor-pointer flex-col gap-0.5 bg-card p-1.5 text-left transition-colors hover:bg-accent/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-[104px] sm:p-2 ${
         day.isSaturday ? 'bg-muted/45' : ''
       } ${isYomTov ? 'bg-primary/[0.05]' : ''} ${
-        hasYahrzeit ? 'bg-candle/[0.06] ring-1 ring-inset ring-candle/40' : ''
+        effectiveHasYahrzeit ? 'bg-candle/[0.06] ring-1 ring-inset ring-candle/40' : ''
       } ${day.isToday ? 'ring-2 ring-inset ring-primary/60' : ''} ${
         cellDropActive ? 'ring-2 ring-inset ring-primary bg-primary/10' : ''
       }`}
@@ -527,7 +544,7 @@ export function DayCell({
           {day.gregDay}
         </span>
         <span className="inline-flex items-center gap-1 text-[8.5px] font-medium text-muted-foreground tabular-nums sm:text-[9.5px]">
-          {hasYahrzeit && <Flame className="size-2.5 text-candle" />}
+          {effectiveHasYahrzeit && <Flame className="size-2.5 text-candle" />}
           {(jewishOptions?.moonPhase ?? true) && (
             <span
               className={`inline-flex items-center gap-0.5 ${
@@ -718,50 +735,52 @@ export function DayCell({
         </div>
       )}
 
-      <div className="relative mt-auto flex flex-col gap-0.5 pt-0.5 sm:pt-1">
-        {day.zmanim.candleLighting && (
-          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
-            <Flame className="size-2.5 shrink-0 sm:size-3" />
-            <span className="hidden sm:inline">
-              {day.zmanim.candleLightingType === 'after-nightfall' ? 'YT Candle' : 'Candle'}
-            </span>
-            <span>{candleStr}</span>
-            {settings.bilingual && (
-              <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
-                הדלקת נרות
+      {showDailyZmanim && (showCandleLighting || showHavdalah || showSunTimes) && (
+        <div className="relative mt-auto flex flex-col gap-0.5 pt-0.5 sm:pt-1">
+          {showCandleLighting && (
+            <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
+              <Flame className="size-2.5 shrink-0 sm:size-3" />
+              <span className="hidden sm:inline">
+                {day.zmanim.candleLightingType === 'after-nightfall' ? 'YT Candle' : 'Candle'}
               </span>
-            )}
-          </span>
-        )}
-        {day.zmanim.havdalah && (
-          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
-            <Sparkles className="size-2.5 shrink-0 sm:size-3" />
-            <span className="hidden sm:inline">
-              {day.zmanim.havdalahType === 'yom-tov'
-                ? 'Yom Tov Havdalah'
-                : day.zmanim.havdalahType === 'yaknahaz'
-                ? 'Yaknahaz'
-                : 'Havdalah'}
+              <span>{candleStr}</span>
+              {settings.bilingual && (
+                <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
+                  הדלקת נרות
+                </span>
+              )}
             </span>
-            <span className="sm:hidden">
-              {day.zmanim.havdalahType === 'yom-tov' ? 'YT Hav' : 'Hav'}
-            </span>
-            <span>{havdalahStr}</span>
-            {settings.bilingual && (
-              <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
-                {day.zmanim.havdalahType === 'yom-tov' ? 'הבדלה יו״ט' : 'הבדלה'}
+          )}
+          {showHavdalah && (
+            <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8.5px] font-medium leading-none tabular-nums text-candle sm:gap-1 sm:text-[10px]">
+              <Sparkles className="size-2.5 shrink-0 sm:size-3" />
+              <span className="hidden sm:inline">
+                {day.zmanim.havdalahType === 'yom-tov'
+                  ? 'Yom Tov Havdalah'
+                  : day.zmanim.havdalahType === 'yaknahaz'
+                  ? 'Yaknahaz'
+                  : 'Havdalah'}
               </span>
-            )}
-          </span>
-        )}
-        {!day.zmanim.candleLighting && !day.zmanim.havdalah && (
-          <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8px] font-medium leading-none tabular-nums text-muted-foreground sm:gap-1 sm:text-[9.5px]">
-            <Sun className="size-2 shrink-0 sm:size-2.5" />
-            <span>{sunriseStr}</span>
-            <span className="hidden sm:inline">· ↓ {sunsetStr}</span>
-          </span>
-        )}
-      </div>
+              <span className="sm:hidden">
+                {day.zmanim.havdalahType === 'yom-tov' ? 'YT Hav' : 'Hav'}
+              </span>
+              <span>{havdalahStr}</span>
+              {settings.bilingual && (
+                <span dir="rtl" className="hidden shrink-0 font-sans text-[9px] sm:inline">
+                  {day.zmanim.havdalahType === 'yom-tov' ? 'הבדלה יו״ט' : 'הבדלה'}
+                </span>
+              )}
+            </span>
+          )}
+          {showSunTimes && (
+            <span className="inline-flex max-w-full items-center gap-0.5 truncate font-mono text-[8px] font-medium leading-none tabular-nums text-muted-foreground sm:gap-1 sm:text-[9.5px]">
+              <Sun className="size-2 shrink-0 sm:size-2.5" />
+              <span>{sunriseStr}</span>
+              <span className="hidden sm:inline">· ↓ {sunsetStr}</span>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -982,8 +1001,11 @@ export function MonthCard({
                 customEvents ?? [],
                 dayEventOrder
               );
-              const dayYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
-              const isYomTov = day.holidays.some((h) => h.isYomTov);
+              const showYahrzeits = jewishOptions?.showYahrzeits ?? true;
+              const rawYahrzeits = getYahrzeitsForDay(day, personalHebrewEvents ?? []);
+              const dayYahrzeits = showYahrzeits ? rawYahrzeits : [];
+              const visibleHolidays = day.holidays.filter((h) => isHolidayVisible(h, jewishOptions));
+              const isYomTov = visibleHolidays.some((h) => h.isYomTov);
 
               return (
                 <button
@@ -1019,9 +1041,9 @@ export function MonthCard({
                             <span>{day.lunarPhase.illuminationPct}%</span>
                           </span>
                         )}
-                        {day.holidays.length > 0 && (
+                        {visibleHolidays.length > 0 && (
                           <span className="truncate text-xs font-semibold text-primary">
-                            · {day.holidays[0].name}
+                            · {visibleHolidays[0].name}
                           </span>
                         )}
                       </div>

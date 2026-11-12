@@ -23,20 +23,225 @@ export type MinhagType = 'chabad' | 'ashkenazi' | 'sefardi';
 export type ZmanimProfileType = 'chabad' | 'gra' | 'ovadia-yosef';
 export type CalendarCycleType = 'secular' | 'hebrew';
 
+export type HolidayCategory =
+  | 'major'
+  | 'roshchodesh'
+  | 'cholhamoed'
+  | 'fast'
+  | 'minor'
+  | 'special-shabbat'
+  | 'chabad'
+  | 'modern';
+
 export interface JewishInfoOptions {
-  parsha: boolean;
-  pirkeiAvot: boolean;
-  omer: boolean;
-  birkatHaChodesh: boolean;
-  kiddushLevana: boolean;
-  chitas: boolean;
-  hayomYom: boolean;
-  dafYomi: boolean;
-  rambam: boolean;
-  fastDetails: boolean;
+  // Torah & Study
+  parsha?: boolean;
+  pirkeiAvot?: boolean;
+  omer?: boolean;
+  birkatHaChodesh?: boolean;
+  kiddushLevana?: boolean;
+  chitas?: boolean;
+  hayomYom?: boolean;
+  dafYomi?: boolean;
+  rambam?: boolean;
+  fastDetails?: boolean;
+
+  // Daily Halachic Zmanim
+  showDailyZmanim?: boolean;
+  showCandleLighting?: boolean;
+  showHavdalah?: boolean;
+  showSunTimes?: boolean;
   dualZmanim?: boolean;
+
+  // Holiday Categories
+  holidayMajor?: boolean;
+  holidayRoshChodesh?: boolean;
+  holidayCholHaMoed?: boolean;
+  holidayFast?: boolean;
+  holidayMinor?: boolean;
+  holidaySpecialShabbat?: boolean;
+  holidayChabad?: boolean;
+  holidayModern?: boolean;
+
+  // Personal & Visuals
+  showYahrzeits?: boolean;
+  showCustomEvents?: boolean;
   moonPhase?: boolean;
 }
+
+export type ClutterPresetKey = 'all' | 'clean' | 'essential' | 'zmanim-focus';
+
+export interface ClutterPreset {
+  id: ClutterPresetKey;
+  label: string;
+  badge: string;
+  description: string;
+  options: Partial<JewishInfoOptions>;
+}
+
+export const CLUTTER_PRESETS: ClutterPreset[] = [
+  {
+    id: 'all',
+    label: 'Full Luach',
+    badge: 'All Visible',
+    description: 'Complete display of all holidays, Torah portions, study tracks, and daily prayer times.',
+    options: {
+      parsha: true,
+      pirkeiAvot: true,
+      omer: true,
+      birkatHaChodesh: true,
+      kiddushLevana: true,
+      chitas: true,
+      fastDetails: true,
+      showDailyZmanim: true,
+      showCandleLighting: true,
+      showHavdalah: true,
+      showSunTimes: true,
+      dualZmanim: true,
+      holidayMajor: true,
+      holidayRoshChodesh: true,
+      holidayCholHaMoed: true,
+      holidayFast: true,
+      holidayMinor: true,
+      holidaySpecialShabbat: true,
+      holidayChabad: true,
+      showYahrzeits: true,
+      showCustomEvents: true,
+      moonPhase: true,
+    },
+  },
+  {
+    id: 'clean',
+    label: 'Clean / Low Clutter',
+    badge: 'Recommended',
+    description: 'Hides secondary study tracks and sunrise/sunset. Keeps Parsha, Major Yom Tov, Fast Days, and Candle/Havdalah.',
+    options: {
+      parsha: true,
+      pirkeiAvot: false,
+      omer: true,
+      birkatHaChodesh: true,
+      kiddushLevana: false,
+      chitas: false,
+      hayomYom: false,
+      dafYomi: false,
+      rambam: false,
+      fastDetails: true,
+      showDailyZmanim: true,
+      showCandleLighting: true,
+      showHavdalah: true,
+      showSunTimes: false,
+      dualZmanim: false,
+      holidayMajor: true,
+      holidayRoshChodesh: true,
+      holidayCholHaMoed: true,
+      holidayFast: true,
+      holidayMinor: false,
+      holidaySpecialShabbat: true,
+      holidayChabad: false,
+      showYahrzeits: true,
+      showCustomEvents: true,
+      moonPhase: false,
+    },
+  },
+  {
+    id: 'essential',
+    label: 'Minimalist Essential',
+    badge: 'Poster Print',
+    description: 'Cleanest poster layout: dates, Major Biblical Holidays (Yom Tov), and Shabbat Candle Lighting only.',
+    options: {
+      parsha: false,
+      pirkeiAvot: false,
+      omer: false,
+      birkatHaChodesh: false,
+      kiddushLevana: false,
+      chitas: false,
+      hayomYom: false,
+      dafYomi: false,
+      rambam: false,
+      fastDetails: false,
+      showDailyZmanim: true,
+      showCandleLighting: true,
+      showHavdalah: false,
+      showSunTimes: false,
+      dualZmanim: false,
+      holidayMajor: true,
+      holidayRoshChodesh: false,
+      holidayCholHaMoed: false,
+      holidayFast: false,
+      holidayMinor: false,
+      holidaySpecialShabbat: false,
+      holidayChabad: false,
+      showYahrzeits: false,
+      showCustomEvents: false,
+      moonPhase: false,
+    },
+  },
+  {
+    id: 'zmanim-focus',
+    label: 'Zmanim Focused',
+    badge: 'Halachic Times',
+    description: 'Maximizes prayer and halachic sun times; hides study tracks and minor announcements.',
+    options: {
+      parsha: true,
+      pirkeiAvot: false,
+      omer: true,
+      birkatHaChodesh: true,
+      kiddushLevana: true,
+      chitas: false,
+      hayomYom: false,
+      dafYomi: false,
+      rambam: false,
+      fastDetails: true,
+      showDailyZmanim: true,
+      showCandleLighting: true,
+      showHavdalah: true,
+      showSunTimes: true,
+      dualZmanim: true,
+      holidayMajor: true,
+      holidayRoshChodesh: true,
+      holidayCholHaMoed: true,
+      holidayFast: true,
+      holidayMinor: true,
+      holidaySpecialShabbat: false,
+      holidayChabad: false,
+      showYahrzeits: true,
+      showCustomEvents: true,
+      moonPhase: true,
+    },
+  },
+];
+
+export const DEFAULT_JEWISH_OPTIONS: JewishInfoOptions = {
+  parsha: true,
+  pirkeiAvot: true,
+  omer: true,
+  birkatHaChodesh: true,
+  kiddushLevana: true,
+  chitas: true,
+  hayomYom: false,
+  dafYomi: false,
+  rambam: false,
+  fastDetails: true,
+
+  showDailyZmanim: true,
+  showCandleLighting: true,
+  showHavdalah: true,
+  showSunTimes: true,
+  dualZmanim: false,
+
+  holidayMajor: true,
+  holidayRoshChodesh: true,
+  holidayCholHaMoed: true,
+  holidayFast: true,
+  holidayMinor: true,
+  holidaySpecialShabbat: true,
+  holidayChabad: true,
+  holidayModern: false,
+
+  showYahrzeits: true,
+  showCustomEvents: true,
+  moonPhase: true,
+};
 
 export interface CalendarSettings {
   year: number;
@@ -58,6 +263,14 @@ export interface PersonalHebrewEvent {
   hebrewMonth: number; // 1 = Nissan ... 7 = Tishrei ... 12 = Adar
   hebrewMonthName: string;
   notes?: string;
+  relationship?: string;
+  englishName?: string;
+  hebrewName?: string;
+  dateOfPassing?: string; // ISO date string YYYY-MM-DD
+  afterSunset?: boolean;
+  hebrewYearOfPassing?: number;
+  observances?: string[];
+  enabled?: boolean;
 }
 
 export type CustomEventRecurrence =
@@ -108,6 +321,7 @@ export interface DayHolidayItem {
   isYomTov: boolean;
   isFastDay: boolean;
   isChabad?: boolean;
+  category: HolidayCategory;
 }
 
 export interface DayJewishInfo {
@@ -814,6 +1028,7 @@ function getHolidaysForDay(
           isYomTov: false,
           isFastDay: false,
           isChabad: true,
+          category: 'chabad',
         });
       }
     }
@@ -822,19 +1037,65 @@ function getHolidaysForDay(
   const hebHolidays = getHolidaysOnDate(hd, isIsrael) ?? [];
   for (const ev of hebHolidays) {
     const f = ev.getFlags();
-    if (f & flags.MODERN_HOLIDAY) continue;
     let rendered = normalizeHebrewName(ev.render('en'));
     if (minhag === 'sefardi') {
       rendered = rendered.replace(/Rosh Hashana/g, 'Rosh HaShanah');
     }
+
+    const isYomTov = (f & flags.CHAG) !== 0 || ev.getDesc() === 'Yom Kippur';
+    const isFastDay = (f & (flags.MAJOR_FAST | flags.MINOR_FAST)) !== 0;
+
+    let category: HolidayCategory = 'minor';
+    if (isYomTov) {
+      category = 'major';
+    } else if ((f & flags.ROSH_CHODESH) !== 0) {
+      category = 'roshchodesh';
+    } else if ((f & flags.CHOL_HAMOED) !== 0) {
+      category = 'cholhamoed';
+    } else if (isFastDay) {
+      category = 'fast';
+    } else if ((f & flags.SPECIAL_SHABBAT) !== 0) {
+      category = 'special-shabbat';
+    } else if ((f & flags.MODERN_HOLIDAY) !== 0) {
+      category = 'modern';
+    } else {
+      category = 'minor';
+    }
+
     list.push({
       name: rendered,
-      isYomTov: (f & flags.CHAG) !== 0 || ev.getDesc() === 'Yom Kippur',
-      isFastDay: (f & (flags.MAJOR_FAST | flags.MINOR_FAST)) !== 0,
+      isYomTov,
+      isFastDay,
+      category,
     });
   }
 
   return list;
+}
+
+export function isHolidayVisible(holiday: DayHolidayItem, options?: JewishInfoOptions): boolean {
+  if (holiday.isChabad) {
+    return options?.holidayChabad ?? true;
+  }
+  switch (holiday.category) {
+    case 'major':
+      return options?.holidayMajor ?? true;
+    case 'roshchodesh':
+      return options?.holidayRoshChodesh ?? true;
+    case 'cholhamoed':
+      return options?.holidayCholHaMoed ?? true;
+    case 'fast':
+      return options?.holidayFast ?? true;
+    case 'special-shabbat':
+      return options?.holidaySpecialShabbat ?? true;
+    case 'modern':
+      return options?.holidayModern ?? false;
+    case 'chabad':
+      return options?.holidayChabad ?? true;
+    case 'minor':
+    default:
+      return options?.holidayMinor ?? true;
+  }
 }
 
 function buildMoladInfo(hYear: number, hMonth: number): MoladInfo {
@@ -1081,6 +1342,7 @@ export function doesHebrewEventMatchDay(
   ev: PersonalHebrewEvent,
   day: CalendarDay
 ): boolean {
+  if (ev.enabled === false) return false;
   if (ev.hebrewDay !== day.hebrewDay) return false;
   // Adar (12) matches Adar in regular years and Adar I (12) or Adar II (13) in leap years
   if (ev.hebrewMonth === 12 && (day.hebrewMonthNum === 12 || day.hebrewMonthNum === 13)) {
@@ -1112,6 +1374,119 @@ export function findYahrzeitOccurrencesInCalendar(
   });
   return matches;
 }
+
+export interface ConvertedHebrewPassingDate {
+  hebrewDay: number;
+  hebrewMonth: number;
+  hebrewMonthName: string;
+  hebrewYear: number;
+  hebrewDateString: string;
+  hebrewGematriya: string;
+}
+
+export function calculateHebrewDateOfPassing(
+  gregDateStr: string,
+  afterSunset = false
+): ConvertedHebrewPassingDate | null {
+  if (!gregDateStr) return null;
+  const parts = gregDateStr.split('-');
+  if (parts.length !== 3) return null;
+  const y = Number.parseInt(parts[0], 10);
+  const m = Number.parseInt(parts[1], 10) - 1;
+  const d = Number.parseInt(parts[2], 10);
+  const parsed = new Date(y, m, d, 12, 0, 0);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  let hd = new HDate(parsed);
+  if (afterSunset) {
+    hd = hd.next();
+  }
+
+  const hDay = hd.getDate();
+  const hMonth = hd.getMonth() === 13 ? 12 : hd.getMonth();
+  const hMonthName = normalizeHebrewName(hd.getMonthName());
+  const hYear = hd.getFullYear();
+
+  return {
+    hebrewDay: hDay,
+    hebrewMonth: hMonth,
+    hebrewMonthName: hMonthName,
+    hebrewYear: hYear,
+    hebrewDateString: `${hDay} ${hMonthName} ${hYear}`,
+    hebrewGematriya: hd.renderGematriya(),
+  };
+}
+
+export interface YahrzeitYearOccurrence {
+  gregDate: Date;
+  dateKey: string;
+  weekdayName: string;
+  formattedDate: string;
+  eveFormattedDate: string;
+  yearsOfRemembrance?: number;
+  ordinalYearsString?: string;
+  observanceNotes: string;
+}
+
+export function calculateYahrzeitOccurrenceForYear(
+  hebrewDay: number,
+  hebrewMonth: number,
+  targetSecularYear: number,
+  passingHebrewYear?: number
+): YahrzeitYearOccurrence | null {
+  try {
+    const hebrewYearForMonth =
+      hebrewMonth >= 7 ? targetSecularYear + 3761 : targetSecularYear + 3760;
+
+    let hd: HDate;
+    try {
+      hd = new HDate(hebrewDay, hebrewMonth, hebrewYearForMonth);
+    } catch {
+      hd = new HDate(Math.min(hebrewDay, 29), hebrewMonth, hebrewYearForMonth);
+    }
+
+    const greg = hd.greg();
+    const eveDate = new Date(greg);
+    eveDate.setDate(eveDate.getDate() - 1);
+
+    const years = passingHebrewYear ? hebrewYearForMonth - passingHebrewYear : undefined;
+
+    const ord = (n: number) => {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    const ordinalStr = years && years > 0 ? `${ord(years)} Yahrzeit` : undefined;
+
+    return {
+      gregDate: greg,
+      dateKey: formatDateKey(greg),
+      weekdayName: WEEKDAY_NAMES[greg.getDay()],
+      formattedDate: greg.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      eveFormattedDate: eveDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+      yearsOfRemembrance: years && years > 0 ? years : undefined,
+      ordinalYearsString: ordinalStr,
+      observanceNotes: `Memorial candle lit at sunset on ${eveDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })}; Kaddish and Mishnayot recited throughout ${WEEKDAY_NAMES[greg.getDay()]}.`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 
 export function doesCustomEventMatchDay(
   ev: CustomCalendarEvent,

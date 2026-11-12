@@ -4,11 +4,13 @@ import {
   ChevronDown,
   Download,
   FileCode2,
+  FileJson,
   FileSpreadsheet,
   FileText,
   Loader2,
   Printer,
   Scissors,
+  Settings,
   Sparkles,
 } from 'lucide-react';
 
@@ -32,6 +34,8 @@ export interface ExportMenuProps {
   onExportIcs: () => void;
   onPrint: () => void;
   onExportOfflineHtml: () => void;
+  onExportSettings?: () => void;
+  onOpenSettingsBackup?: () => void;
   align?: 'left' | 'right';
 }
 
@@ -55,6 +59,8 @@ export function ExportMenu({
   onExportIcs,
   onPrint,
   onExportOfflineHtml,
+  onExportSettings,
+  onOpenSettingsBackup,
   align = 'right',
 }: ExportMenuProps) {
   const [open, setOpen] = useState(false);
@@ -292,34 +298,80 @@ export function ExportMenu({
                 </p>
               </div>
             </button>
+
+            {/* 4. Calendar Settings Backup (.json) */}
+            {onExportSettings && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onExportSettings();
+                  setOpen(false);
+                }}
+                className="group flex w-full cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-accent/50"
+              >
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
+                  <FileJson className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      Calendar Settings Backup (.json)
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      BACKUP
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    Export full calendar configuration, custom events, yahrzeits, and theme overrides.
+                  </p>
+                </div>
+              </button>
+            )}
           </div>
 
-          {/* Secondary Print & Offline HTML Footer Row */}
-          <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onPrint();
-              }}
-              className="inline-flex min-h-[36px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent whitespace-nowrap shrink-0"
-            >
-              <Printer className="size-3.5 text-primary" />
-              <span>Browser Print Dialog</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onExportOfflineHtml();
-                setOpen(false);
-              }}
-              className="inline-flex min-h-[36px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent whitespace-nowrap shrink-0"
-            >
-              <FileCode2 className="size-3.5 text-primary" />
-              <span>Offline HTML</span>
-            </button>
+          {/* Secondary Print, Offline HTML, and Settings Center Footer Row */}
+          <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onPrint();
+                }}
+                className="inline-flex min-h-[36px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent whitespace-nowrap shrink-0"
+              >
+                <Printer className="size-3.5 text-primary" />
+                <span>Print Dialog</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onExportOfflineHtml();
+                  setOpen(false);
+                }}
+                className="inline-flex min-h-[36px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent whitespace-nowrap shrink-0"
+              >
+                <FileCode2 className="size-3.5 text-primary" />
+                <span>Offline HTML</span>
+              </button>
+            </div>
+
+            {onOpenSettingsBackup && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenSettingsBackup();
+                }}
+                className="inline-flex min-h-[32px] w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-muted/40 px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <Settings className="size-3.5" />
+                <span>Auto-Save &amp; Settings Backup Center</span>
+              </button>
+            )}
           </div>
         </div>
       )}

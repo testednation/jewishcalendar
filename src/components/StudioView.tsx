@@ -7,6 +7,9 @@ import {
   Clock,
   Download,
   FileSpreadsheet,
+  Flame,
+  FileJson,
+  HardDrive,
   Image as ImageIcon,
   Layers,
   Loader2,
@@ -35,6 +38,7 @@ import {
   CalendarSettings,
   CitySearchResult,
   CustomCalendarEvent,
+  DEFAULT_JEWISH_OPTIONS,
   DEFAULT_SETTINGS,
   JewishInfoOptions,
   MinhagType,
@@ -77,7 +81,8 @@ import {
   MoonPhaseDisc,
 } from './CalendarGrid';
 import { DayModal } from './DayModal';
-import { YahrzeitTracker } from './YahrzeitTracker';
+import { YahrzeitSidePanel } from './YahrzeitSidePanel';
+import { EventFilterControlPanel } from './EventFilterControlPanel';
 import {
   CommunitySponsor,
   DEFAULT_SPONSORS,
@@ -86,6 +91,12 @@ import {
 import { TodayZmanimView } from './TodayZmanimView';
 import { ThemeCustomizerPanel } from './ThemeCustomizerPanel';
 import { ExportMenu } from './ExportMenu';
+import { SettingsBackupModal } from './SettingsBackupModal';
+import {
+  LuachSettingsBackup,
+  buildSettingsBackup,
+  downloadSettingsBackupFile,
+} from '../lib/settingsBackup';
 import { CustomEventsManager, DEFAULT_CUSTOM_EVENTS } from './CustomEventsManager';
 import { LanguageSwitcher, LogoMark } from './LogoMark';
 import { useTranslation } from '../i18n/translations';
@@ -267,19 +278,20 @@ export function StudioView({
 
   // Jewish info toggles
   const [jewishOptions, setJewishOptions] = useState<JewishInfoOptions>(() => ({
-    parsha: savedState?.jewishOptions?.parsha ?? true,
-    pirkeiAvot: savedState?.jewishOptions?.pirkeiAvot ?? true,
-    omer: savedState?.jewishOptions?.omer ?? true,
-    birkatHaChodesh: savedState?.jewishOptions?.birkatHaChodesh ?? true,
-    kiddushLevana: savedState?.jewishOptions?.kiddushLevana ?? true,
-    chitas: savedState?.jewishOptions?.chitas ?? true,
-    hayomYom: savedState?.jewishOptions?.hayomYom ?? false,
-    dafYomi: savedState?.jewishOptions?.dafYomi ?? false,
-    rambam: savedState?.jewishOptions?.rambam ?? false,
-    fastDetails: savedState?.jewishOptions?.fastDetails ?? true,
-    dualZmanim: savedState?.jewishOptions?.dualZmanim ?? false,
-    moonPhase: savedState?.jewishOptions?.moonPhase ?? true,
+    ...DEFAULT_JEWISH_OPTIONS,
+    ...(savedState?.jewishOptions ?? {}),
   }));
+
+  // Dedicated Yahrzeit side-panel slide-out drawer state
+  const [isYahrzeitDrawerOpen, setIsYahrzeitDrawerOpen] = useState<boolean>(false);
+
+  // Auto-Save options & Settings Backup modal state
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(
+    savedState?.autoSaveEnabled ?? true
+  );
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(new Date());
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false);
+  const [isSettingsBackupModalOpen, setIsSettingsBackupModalOpen] = useState<boolean>(false);
 
   const [location, setLocation] = useState<CalendarLocation>(defaultLoc);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(true);
@@ -367,12 +379,16 @@ export function StudioView({
     notify(`Moved custom event to ${targetDateKey}`);
   };
 
-  // Persist to localStorage
+  // Persist to localStorage with Auto-Save status & timestamp
   useEffect(() => {
+    if (!autoSaveEnabled) return;
+    setIsAutoSaving(true);
+    let timer: NodeJS.Timeout | undefined;
     try {
       localStorage.setItem(
         SETTINGS_STORAGE_KEY,
         JSON.stringify({
+          autoSaveEnabled,
           orgName,
           year,
           cycle,
@@ -411,10 +427,17 @@ export function StudioView({
           previewMode,
         })
       );
+      setLastSavedAt(new Date());
     } catch {
       // ignore storage quota errors
+    } finally {
+      timer = setTimeout(() => setIsAutoSaving(false), 300);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [
+    autoSaveEnabled,
     orgName,
     year,
     cycle,
@@ -452,6 +475,153 @@ export function StudioView({
     interMonthPages,
     previewMode,
   ]);
+
+  const currentSettingsBackup = useMemo<LuachSettingsBackup>(
+    () =>
+      buildSettingsBackup({
+        orgName,
+        year,
+        cycle,
+        location,
+        hour12,
+        useElevation,
+        tzeitMinutes,
+        candleMinutes,
+        minhag,
+        zmanimProfile,
+        bilingual,
+        themeId,
+        paletteOverrides,
+        customThemes,
+        jewishOptions,
+        paperSize,
+        orientation,
+        fitToPage,
+        monthsPerPage,
+        showCropMarks,
+        previewMode,
+        startFromCurrent,
+        personalHebrewEvents,
+        customEvents,
+        dayEventOrder,
+        specialEvents,
+        sponsors,
+        sponsorsEnabled,
+        photoCalendar,
+        customPhoto,
+        monthPhotos,
+        blankCellPhotos,
+        weekPhotos,
+        dayPhotos,
+        interMonthPages,
+      }),
+    [
+      orgName,
+      year,
+      cycle,
+      location,
+      hour12,
+      useElevation,
+      tzeitMinutes,
+      candleMinutes,
+      minhag,
+      zmanimProfile,
+      bilingual,
+      themeId,
+      paletteOverrides,
+      customThemes,
+      jewishOptions,
+      paperSize,
+      orientation,
+      fitToPage,
+      monthsPerPage,
+      showCropMarks,
+      previewMode,
+      startFromCurrent,
+      personalHebrewEvents,
+      customEvents,
+      dayEventOrder,
+      specialEvents,
+      sponsors,
+      sponsorsEnabled,
+      photoCalendar,
+      customPhoto,
+      monthPhotos,
+      blankCellPhotos,
+      weekPhotos,
+      dayPhotos,
+      interMonthPages,
+    ]
+  );
+
+  const handleExportSettingsJson = () => {
+    const filename = downloadSettingsBackupFile(currentSettingsBackup);
+    notify(`Exported calendar settings backup file: ${filename}`);
+  };
+
+  const handleRestoreSettingsBackup = (backup: LuachSettingsBackup) => {
+    setOrgName(backup.calendar.orgName);
+    setYear(backup.calendar.year);
+    setCycle(backup.calendar.cycle);
+    setLocation(backup.calendar.location);
+    setUserSelectedManualLocation(true);
+    setHour12(backup.calendar.settings.hour12);
+    setUseElevation(backup.calendar.settings.useElevation);
+    setTzeitMinutes(backup.calendar.settings.tzeitMinutes);
+    setCandleMinutes(backup.calendar.settings.candleMinutes);
+    setMinhag(backup.calendar.settings.minhag);
+    setZmanimProfile(backup.calendar.settings.zmanimProfile);
+    setBilingual(backup.calendar.settings.bilingual);
+    setThemeId(backup.theme.themeId);
+    setPaletteOverrides(backup.theme.paletteOverrides);
+    setCustomThemes(backup.theme.customThemes);
+    setJewishOptions(backup.displayFilters);
+    setPaperSize(backup.printLayout.paperSize);
+    setOrientation(backup.printLayout.orientation);
+    setFitToPage(backup.printLayout.fitToPage);
+    setMonthsPerPage(backup.printLayout.monthsPerPage);
+    setShowCropMarks(backup.printLayout.showCropMarks);
+    setPreviewMode(backup.printLayout.previewMode);
+    setStartFromCurrent(backup.printLayout.startFromCurrent);
+    setPersonalHebrewEvents(backup.personalEvents.personalHebrewEvents);
+    setCustomEvents(backup.personalEvents.customEvents);
+    setDayEventOrder(backup.personalEvents.dayEventOrder);
+    setSpecialEvents(backup.personalEvents.specialEvents);
+    setSponsors(backup.sponsors.list);
+    setSponsorsEnabled(backup.sponsors.enabled);
+    if (backup.photos) {
+      if (backup.photos.photoCalendar !== undefined) setPhotoCalendar(backup.photos.photoCalendar);
+      if (backup.photos.customPhoto !== undefined) setCustomPhoto(backup.photos.customPhoto);
+      if (backup.photos.monthPhotos) setMonthPhotos(backup.photos.monthPhotos);
+      if (backup.photos.blankCellPhotos) setBlankCellPhotos(backup.photos.blankCellPhotos);
+      if (backup.photos.weekPhotos) setWeekPhotos(backup.photos.weekPhotos);
+      if (backup.photos.dayPhotos) setDayPhotos(backup.photos.dayPhotos);
+      if (backup.photos.interMonthPages) setInterMonthPages(backup.photos.interMonthPages);
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    setOrgName(formatAutoOrgName(defaultLoc.city));
+    setYear(DEFAULT_SETTINGS.year);
+    setCycle('secular');
+    setLocation(defaultLoc);
+    setUserSelectedManualLocation(false);
+    setHour12(DEFAULT_SETTINGS.hour12);
+    setUseElevation(DEFAULT_SETTINGS.useElevation);
+    setTzeitMinutes(DEFAULT_SETTINGS.tzeitMinutes);
+    setCandleMinutes(DEFAULT_SETTINGS.candleMinutes);
+    setMinhag('chabad');
+    setZmanimProfile('chabad');
+    setBilingual(DEFAULT_SETTINGS.bilingual);
+    setThemeId('sapphire');
+    setPaletteOverrides({});
+    setJewishOptions(DEFAULT_JEWISH_OPTIONS);
+    setPaperSize('letter');
+    setOrientation('portrait');
+    setFitToPage(true);
+    setMonthsPerPage(1);
+    setShowCropMarks(false);
+  };
 
   const settings = useMemo<CalendarSettings>(
     () => ({
@@ -830,6 +1000,43 @@ export function StudioView({
                 {statusMessage}
               </span>
             )}
+
+            {/* Live Auto-Save Status Badge & Settings Backup trigger */}
+            <button
+              type="button"
+              onClick={() => setIsSettingsBackupModalOpen(true)}
+              title="Auto-Save status & Calendar Settings Backup (click to configure or export)"
+              className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:inline-flex whitespace-nowrap shrink-0"
+            >
+              <span
+                className={`size-2 rounded-full ${
+                  autoSaveEnabled
+                    ? isAutoSaving
+                      ? 'bg-amber-500 animate-ping'
+                      : 'bg-emerald-500 animate-pulse'
+                    : 'bg-muted-foreground'
+                }`}
+              />
+              <span>
+                {autoSaveEnabled
+                  ? isAutoSaving
+                    ? 'Saving…'
+                    : 'Auto-saved'
+                  : 'Auto-save paused'}
+              </span>
+            </button>
+
+            {/* Quick Export Settings Button */}
+            <button
+              type="button"
+              onClick={handleExportSettingsJson}
+              title="Export complete calendar settings and custom events to JSON backup file"
+              className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:inline-flex whitespace-nowrap shrink-0"
+            >
+              <FileJson className="size-3.5 text-primary" />
+              <span>Export Settings</span>
+            </button>
+
             <LanguageSwitcher />
             <ExportMenu
               orgName={orgName}
@@ -851,6 +1058,8 @@ export function StudioView({
               onExportIcs={handleExportIcs}
               onPrint={handlePrint}
               onExportOfflineHtml={handleExportOfflineHtml}
+              onExportSettings={handleExportSettingsJson}
+              onOpenSettingsBackup={() => setIsSettingsBackupModalOpen(true)}
               align="right"
             />
             <button
@@ -1158,8 +1367,17 @@ export function StudioView({
               onNotify={notify}
             />
 
-            {/* Dedicated Yahrzeit Tracker Component */}
-            <YahrzeitTracker
+            {/* Display Filters & Visual Clutter Control Panel */}
+            <div id="studio-event-filters">
+              <EventFilterControlPanel
+                options={jewishOptions}
+                onChangeOptions={setJewishOptions}
+                onReset={() => notify('Reset display filters to default')}
+              />
+            </div>
+
+            {/* Dedicated Yahrzeit & Memorial Registry Side-Panel Component */}
+            <YahrzeitSidePanel
               calendar={calendar}
               events={personalHebrewEvents}
               onAddEvent={(ev) => {
@@ -1169,6 +1387,12 @@ export function StudioView({
               onRemoveEvent={(id) => {
                 setPersonalHebrewEvents((prev) => prev.filter((item) => item.id !== id));
                 notify('Removed date from calendar');
+              }}
+              onUpdateEvent={(updated) => {
+                setPersonalHebrewEvents((prev) =>
+                  prev.map((item) => (item.id === updated.id ? updated : item))
+                );
+                notify(`Updated ${updated.title}`);
               }}
               onLocateDay={(day, mIdx) => {
                 setPreviewMode('continuous');
@@ -1181,6 +1405,8 @@ export function StudioView({
                   setSelectedDay(day);
                 }, 80);
               }}
+              variant="sidebar"
+              onOpenDrawer={() => setIsYahrzeitDrawerOpen(true)}
             />
 
             {/* Add Custom Event Manager (One-Time & Recurring Events) */}
@@ -1436,6 +1662,27 @@ export function StudioView({
                 >
                   <Calendar className="size-3.5 text-primary" />
                   <span>{t('dash.export.ics')}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+                <button
+                  type="button"
+                  onClick={handleExportSettingsJson}
+                  title="Export calendar settings as a portable JSON backup file"
+                  className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.06] text-xs font-semibold text-primary hover:bg-primary/[0.12] whitespace-nowrap shrink-0"
+                >
+                  <FileJson className="size-3.5" />
+                  <span>Export Settings (.json)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsBackupModalOpen(true)}
+                  title="Auto-Save & Settings Backup Center"
+                  className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-medium text-foreground hover:bg-accent whitespace-nowrap shrink-0"
+                >
+                  <HardDrive className="size-3.5 text-muted-foreground" />
+                  <span>Backup Center</span>
                 </button>
               </div>
 
@@ -1943,6 +2190,35 @@ export function StudioView({
                     </button>
                   </div>
 
+                  {/* Quick Yahrzeit Side-Panel Drawer Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsYahrzeitDrawerOpen(true)}
+                    title="Open Yahrzeit & Memorial Registry with automatic Hebrew date calculations"
+                    className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border border-candle/40 bg-candle/[0.08] px-2.5 py-1 text-xs font-semibold text-candle transition-colors hover:bg-candle/15 whitespace-nowrap shrink-0"
+                  >
+                    <Flame className="size-3.5 text-candle" />
+                    <span>Yahrzeits ({personalHebrewEvents.length})</span>
+                  </button>
+
+                  {/* Quick Display Filters Scroll/Access Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('studio-event-filters');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      } else {
+                        setMobileTab('customize');
+                      }
+                    }}
+                    title="Filter displayed events: show/hide Parsha, Zmanim, or Holiday categories"
+                    className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent whitespace-nowrap shrink-0"
+                  >
+                    <SlidersHorizontal className="size-3.5 text-primary" />
+                    <span>Filter Events</span>
+                  </button>
+
                   {/* Quick Lunar Cycle / Moon Phase Display Toggle */}
                   <button
                     type="button"
@@ -2049,6 +2325,8 @@ export function StudioView({
                     onExportIcs={handleExportIcs}
                     onPrint={handlePrint}
                     onExportOfflineHtml={handleExportOfflineHtml}
+                    onExportSettings={handleExportSettingsJson}
+                    onOpenSettingsBackup={() => setIsSettingsBackupModalOpen(true)}
                     align="right"
                   />
 
@@ -2457,6 +2735,53 @@ export function StudioView({
             : undefined
         }
         onClose={() => setSelectedDay(null)}
+      />
+
+      {/* Yahrzeit Side-Panel Slide-Out Drawer Overlay */}
+      <YahrzeitSidePanel
+        calendar={calendar}
+        events={personalHebrewEvents}
+        onAddEvent={(ev) => {
+          setPersonalHebrewEvents((prev) => [ev, ...prev]);
+          notify(`Marked ${ev.title} (${ev.hebrewDay} ${ev.hebrewMonthName}) on calendar`);
+        }}
+        onRemoveEvent={(id) => {
+          setPersonalHebrewEvents((prev) => prev.filter((item) => item.id !== id));
+          notify('Removed loved one from calendar');
+        }}
+        onUpdateEvent={(updated) => {
+          setPersonalHebrewEvents((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item))
+          );
+        }}
+        onLocateDay={(day, mIdx) => {
+          setIsYahrzeitDrawerOpen(false);
+          setPreviewMode('continuous');
+          setDesktopMainTab('calendar');
+          setMobileTab('calendar');
+          setTimeout(() => {
+            document
+              .getElementById(`month-${mIdx}`)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setSelectedDay(day);
+          }, 80);
+        }}
+        variant="drawer"
+        isOpen={isYahrzeitDrawerOpen}
+        onClose={() => setIsYahrzeitDrawerOpen(false)}
+      />
+
+      {/* Auto-Save & Settings Backup Modal (Export JSON / Restore JSON) */}
+      <SettingsBackupModal
+        isOpen={isSettingsBackupModalOpen}
+        onClose={() => setIsSettingsBackupModalOpen(false)}
+        currentBackup={currentSettingsBackup}
+        onRestoreBackup={handleRestoreSettingsBackup}
+        onResetToDefaults={handleResetToDefaults}
+        autoSaveEnabled={autoSaveEnabled}
+        onToggleAutoSave={setAutoSaveEnabled}
+        lastSavedAt={lastSavedAt}
+        onNotify={notify}
       />
     </div>
   );
