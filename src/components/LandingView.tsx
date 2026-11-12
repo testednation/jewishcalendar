@@ -24,6 +24,7 @@ import { BUILTIN_THEMES } from '../lib/themes';
 import { MonthCard } from './CalendarGrid';
 import { DayModal } from './DayModal';
 import { LanguageSwitcher } from './LogoMark';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { useTranslation } from '../i18n/translations';
 
 export function LandingView({
@@ -156,8 +157,10 @@ export function LandingView({
             </a>
           </nav>
 
-          {/* Zone 3: 1 primary action */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Zone 3: 1 primary action & controls */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <ThemeModeToggle showDropdown={true} />
+            <LanguageSwitcher />
             <button
               type="button"
               onClick={onOpenStudio}

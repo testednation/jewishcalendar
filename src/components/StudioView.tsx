@@ -99,6 +99,8 @@ import {
 } from '../lib/settingsBackup';
 import { CustomEventsManager, DEFAULT_CUSTOM_EVENTS } from './CustomEventsManager';
 import { LanguageSwitcher, LogoMark } from './LogoMark';
+import { ThemeModeToggle } from './ThemeModeToggle';
+import { CalendarThemeToggle } from './CalendarThemeToggle';
 import { useTranslation } from '../i18n/translations';
 
 const SETTINGS_STORAGE_KEY = 'luach:studio:settings:v3';
@@ -1037,6 +1039,22 @@ export function StudioView({
               <span>Export Settings</span>
             </button>
 
+            {/* 1-Click Calendar Theme Toggle in Header */}
+            <CalendarThemeToggle
+              themes={allThemes}
+              currentThemeId={themeId}
+              onSelectTheme={(id) => {
+                setThemeId(id);
+                setHoveredThemeId(null);
+                const th = allThemes.find((t) => t.id === id);
+                if (th) notify(`Theme: ${th.name}`);
+              }}
+              onHoverTheme={setHoveredThemeId}
+              activeTheme={activeTheme}
+              variant="header"
+            />
+
+            <ThemeModeToggle showDropdown={true} />
             <LanguageSwitcher />
             <ExportMenu
               orgName={orgName}
@@ -2238,6 +2256,21 @@ export function StudioView({
                     <Moon className="size-3.5" />
                     <span>Moon Phases</span>
                   </button>
+
+                  {/* 1-Click Calendar Theme Toggle Switch & Stepper */}
+                  <CalendarThemeToggle
+                    themes={allThemes}
+                    currentThemeId={themeId}
+                    onSelectTheme={(id) => {
+                      setThemeId(id);
+                      setHoveredThemeId(null);
+                      const th = allThemes.find((t) => t.id === id);
+                      if (th) notify(`Theme switched to: ${th.name}`);
+                    }}
+                    onHoverTheme={setHoveredThemeId}
+                    activeTheme={activeTheme}
+                    variant="toolbar"
+                  />
 
                   {previewMode === 'pages' && (
                     <>
