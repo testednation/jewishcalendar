@@ -123,7 +123,7 @@ const AVAILABLE_YEARS = Array.from({ length: 10 }, (_, i) => 2024 + i);
 export function StudioView({
   onBackToLanding,
 }: {
-  onBackToLanding: () => void;
+  onBackToLanding?: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -984,7 +984,8 @@ export function StudioView({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={onBackToLanding}
+              onClick={onBackToLanding ?? (() => window.scrollTo({ top: 0, behavior: 'smooth' }))}
+              title="Luach Calendar Studio (Click to scroll to top)"
               className="inline-flex min-h-[38px] cursor-pointer items-center gap-2 text-sm font-semibold text-foreground hover:text-primary whitespace-nowrap shrink-0"
             >
               <LogoMark className="size-6 rounded-lg sm:size-7" iconClassName="size-3.5" />
@@ -1080,14 +1081,16 @@ export function StudioView({
               onOpenSettingsBackup={() => setIsSettingsBackupModalOpen(true)}
               align="right"
             />
-            <button
-              type="button"
-              onClick={onBackToLanding}
-              className="inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground whitespace-nowrap shrink-0"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Overview</span>
-            </button>
+            {onBackToLanding && (
+              <button
+                type="button"
+                onClick={onBackToLanding}
+                className="inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground whitespace-nowrap shrink-0"
+              >
+                <ArrowLeft className="size-3.5" />
+                <span className="hidden sm:inline">Overview</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
